@@ -18,7 +18,11 @@ colnames(image1) = column_names
 colnames(image2) = column_names
 colnames(image3) = column_names
 
-image_combined = rbind(image1, image2, image3)
+image_all = rbind(image1, image2, image3)
+write.csv(image1, "data/image1.csv")
+write.csv(image2, "data/image2.csv")
+write.csv(image3, "data/image2.csv")
+write.csv(image_all, "data/image_all.csv")
 
 #----------------------------------------------------------------------------
 #-------------------------- Question 1b -------------------------------------
@@ -261,28 +265,32 @@ if(TRUE) {
   
   
   mylegend<-g_legend(q1b_legendplot)
-  
+  png(filename="imgs/Fig2a1.png", width = 1920, height = 1080, units = "px", pointsize = 12)
   q1b_finalplot <- grid.arrange(arrangeGrob(q1b_image1 + theme(legend.position="none"),
                                             q1b_image2 + theme(legend.position="none"),
                                             q1b_image3 + theme(legend.position="none"),
                                             nrow=1),
                                 mylegend, nrow=2,heights=c(10, 1))
+  dev.off()
   
 }
 
 #check dimensions of the training and test against original
 if(TRUE) {
   dim(train_1)
+  dim(validation_1)
   dim(test_1)
   dim(image1)
   head(train_1)
   
   dim(train_2)
+  dim(validation_2)
   dim(test_2)
   dim(image2)
   head(train_2)
   
   dim(train_3)
+  dim(validation_3)
   dim(test_3)
   dim(image3)
   head(train_3)
@@ -292,7 +300,28 @@ if(TRUE) {
 #----------------------------------------------------------------------------
 #-------------------------- Question 2b -------------------------------------
 #----------------------------------------------------------------------------
-head(train)
-head(test)
+#classify all the points in validation and test set as -1 (cloud free). This is a `trivial` classifier
+temp = rbind(validation, test)
+accuracy_table = data.frame(dataset = c("Validation", "Test", "Val&Test Combined"),
+                            accuracy = c(mean(validation$expert_label == -1), mean(test$expert_label == -1), mean(temp$expert_label == -1)))
+colnames(accuracy_table) = c("dataset", "Accuracy (Proportion Correct)")
+grid.table(accuracy_table)
+dev.off()
+
+#to read in the data from Image 1 (replace the 1 with 2/3 to get Image2/3)
+image1 = read.csv("data/image1.csv")
+train1 = read.csv("data/train1.csv")
+validation1 = read.csv("data/validation1.csv")
+test1 = read.csv("data/test1.csv")
+
+#to read in the data from all 
+image_all = read.csv("data/image_all.csv")
+train = read.csv("data/train.csv")
+validation = read.csv("data/validation.csv")
+test = read.csv("data/test.csv")
+
+
+
+
 
 

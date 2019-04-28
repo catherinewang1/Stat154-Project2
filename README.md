@@ -13,4 +13,19 @@ To reproduce all the figures, graphs, tables, and results from the final report,
 
 + note: splitting the data into training and testing takes a while to run. To quicken the process, this data has been saved in `data/*.csv` . In R, simply load the data by `read.csv("data/*.csv")`
 + note: in the script, it saves the images in between in the `imgs` folder, however these may result in lower quality (resolution) images than the actual final report contains. To get the higher quality images, run the code and zoom in in RStudio. 
++ note: to read in the data easily, follow the code shown below
+
+```
+#to read in the data from Image 1 (replace the 1 with 2/3 to get Image2/3)
+image1 = read.csv("data/image1.csv")
+train1 = read.csv("data/train1.csv")
+validation1 = read.csv("data/validation1.csv")
+test1 = read.csv("data/test1.csv")
+
+#to read in the data from all 
+image_all = read.csv("data/image_all.csv")
+train = read.csv("data/train.csv")
+validation = read.csv("data/validation.csv")
+test = read.csv("data/test.csv")
+```
 
