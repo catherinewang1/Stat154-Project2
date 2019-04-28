@@ -3,6 +3,7 @@ library(ggplot2)
 library(dplyr)
 library(gridExtra)
 library(GGally)
+library(caret)
 
 
 
@@ -99,6 +100,8 @@ dev.off()
 #ggpairs(image2[sample(1:nrow(image2), 100),], aes(colour = factor(expert_label), alpha = 0.4), title="Pairplot for Image 2")
 #ggpairs(image3[sample(1:nrow(image3), 100),], aes(colour = factor(expert_label), alpha = 0.4), title="Pairplot for Image 3")
 
+
+print(by(image_all, image_all$expert_label, summary))
 
 ####### QUESTION 2 ########
 #----------------------------------------------------------------------------
@@ -301,24 +304,62 @@ if(TRUE) {
 #-------------------------- Question 2b -------------------------------------
 #----------------------------------------------------------------------------
 #classify all the points in validation and test set as -1 (cloud free). This is a `trivial` classifier
+validation_labeled = validation[validation$expert_label != 0, ]
+test_labeled = test[test$expert_label != 0, ]
+temp_labeled = rbind(validation_labeled, test_labeled)
 temp = rbind(validation, test)
 accuracy_table = data.frame(dataset = c("Validation", "Test", "Val&Test Combined"),
-                            accuracy = c(mean(validation$expert_label == -1), mean(test$expert_label == -1), mean(temp$expert_label == -1)))
-colnames(accuracy_table) = c("dataset", "Accuracy (Proportion Correct)")
+                            accuracy = c(mean(validation$expert_label == -1), mean(test$expert_label == -1), mean(temp$expert_label == -1)),
+                            accuracy_labeled = c(mean(validation_labeled$expert_label == -1),
+                                                 mean(test_labeled$expert_label == -1),
+                                                 mean(temp_labeled$expert_label == -1)))
+colnames(accuracy_table) = c("dataset", "Prop Correct {-1,1}", "Prop Correct {-1, 0, 1}")
 grid.table(accuracy_table)
 dev.off()
 
-#to read in the data from Image 1 (replace the 1 with 2/3 to get Image2/3)
-image1 = read.csv("data/image1.csv")
-train1 = read.csv("data/train1.csv")
-validation1 = read.csv("data/validation1.csv")
-test1 = read.csv("data/test1.csv")
 
-#to read in the data from all 
-image_all = read.csv("data/image_all.csv")
-train = read.csv("data/train.csv")
-validation = read.csv("data/validation.csv")
-test = read.csv("data/test.csv")
+
+
+
+#----------------------------------------------------------------------------
+#-------------------------- Question 2d -------------------------------------
+#----------------------------------------------------------------------------
+set.seed(154)
+CVgeneric <- function(generic_classifier, training_features, training_labels, K, lossFunction) {
+  #assumes generic_classifier(trainingLabels ~ . data = trainingFeatures)
+  #loss function takes in yhat, y
+  #returns a vector length K of the loss of each fold
+  folds = createFolds(training_labels, k=K, )
+  losses = c()
+  for(i in 1:K) {
+    #get the inputs for the classifier
+    temp_features_val = training_features[folds[[i]], ]
+    temp_features_train = training_features[-folds[[i]], ]
+    temp_labeled_val = training_labels[folds[[i]]]
+    temp_labeled_train = training_labels[-folds[[i]]]
+    
+    #run the classifier
+    mod_fit = generic_classifier(temp_labeled_train ~ ., data = temp_features_train)
+    predicted = predict(mod_fit, newdata=temp_features_val)
+    loss = lossFunction(predicted, temp_labeled_val)
+    losses = c(losses, loss)
+  }
+  return(losses)
+}
+
+#sanity check
+training_features = train_1[,4:11]
+training_labels = train_1[,3]
+K = 10
+folds = createFolds(training_labels, k=K)
+generic_classifier = lm
+temp_funct <- function(x,y) {mean((x-y)^2)}
+lossFunction =temp_funct
+
+CVgeneric(generic_classifier, training_features, training_labels, K, lossFunction)
+
+
+
 
 
 
