@@ -116,8 +116,8 @@ set.seed(154)
 
 
 #image 1:
-x_square = floor(image1$x / 10)*10
-y_square = floor(image1$y / 10)*10
+x_square = floor(image1$x / 40)*40
+y_square = floor(image1$y / 40)*40
 squares = expand.grid(x = unique(x_square), y = unique(y_square))
 
 indices_randomized = sample(1:nrow(squares))
@@ -155,8 +155,8 @@ write.csv(test_1, "data/test1.csv", row.names = FALSE)
 
 
 #image 2:
-x_square = floor(image2$x / 10)*10
-y_square = floor(image2$y / 10)*10
+x_square = floor(image2$x / 40)*40
+y_square = floor(image2$y / 40)*40
 squares = expand.grid(x = unique(x_square), y = unique(y_square))
 
 indices_randomized = sample(1:nrow(squares))
@@ -193,8 +193,8 @@ write.csv(validation_2, "data/validation2.csv", row.names = FALSE)
 write.csv(test_2, "data/test2.csv", row.names = FALSE)
 
 #image 3:
-x_square = floor(image3$x / 10)*10
-y_square = floor(image3$y / 10)*10
+x_square = floor(image3$x / 40)*40
+y_square = floor(image3$y / 40)*40
 squares = expand.grid(x = unique(x_square), y = unique(y_square))
 
 indices_randomized = sample(1:nrow(squares))
@@ -379,8 +379,8 @@ CVgeneric_genericMatrix <- function(generic_classifier, training_features, train
 CVgeneric <- function(generic_classifier, training_features, training_labels, K, lossFunction, train_whole) {
   #divide the data into K folds through method 1 
   dat = train_whole
-  dat$x10 = floor(dat$x / 10)* 10
-  dat$y10 = floor(dat$y / 10)* 10
+  dat$x10 = floor(dat$x / 40)* 40
+  dat$y10 = floor(dat$y / 40)* 40
   d = dat %>% group_by(imageNum, x10, y10) %>% summarise(count = n())
   mapIndices <- vector("list", nrow(d))
   z = vector("list", nrow(d))
@@ -464,11 +464,12 @@ if(TRUE) {
   validation = read.csv("data/validation.csv")
   test = read.csv("data/test.csv")
   method1_train = rbind(train, validation)
+  rownames(method1_train) = NULL
   dat = method1_train
   dat = train[(train$expert_label != 0), ]
   
-  dat$x10 = floor(dat$x / 10)* 10
-  dat$y10 = floor(dat$y / 10)* 10
+  dat$x10 = floor(dat$x / 40)* 40
+  dat$y10 = floor(dat$y / 40)* 40
   d = dat %>% group_by(imageNum, x10, y10) %>% summarise(count = n())
   mapIndices <- vector("list", nrow(d))
   z = vector("list", nrow(d))
@@ -487,11 +488,12 @@ if(TRUE) {
   image2 = read.csv("data/image2.csv")
   image3 = read.csv("data/image3.csv")
   method2_train = rbind(image2, image3)
+  rownames(method2_train) = NULL
   dat = method2_train
-  dat = train[(train$expert_label != 0), ]
+  dat = method2_train[(method2_train$expert_label != 0), ]
   
-  dat$x10 = floor(dat$x / 10)* 10
-  dat$y10 = floor(dat$y / 10)* 10
+  dat$x10 = floor(dat$x / 40)* 40
+  dat$y10 = floor(dat$y / 40)* 40
   d = dat %>% group_by(imageNum, x10, y10) %>% summarise(count = n())
   mapIndices <- vector("list", nrow(d))
   z = vector("list", nrow(d))
@@ -507,7 +509,7 @@ if(TRUE) {
 }
   
 
-CVgeneric_Optimized <- function(generic_classifier, training_features, training_labels, K, lossFunction, train_whole, mapIndices) {
+CVgeneric_Optimized <- function(generic_classifier, training_features, training_labels, K, lossFunction, mapIndices) {
   #for each fold, find the loss
   set.seed(154)
   losses = c()
@@ -534,25 +536,27 @@ CVgeneric_Optimized <- function(generic_classifier, training_features, training_
 }
 
 K = 10
-#function to get CV for logistic regression
-getCVLogistic <- function(train, mapIndices) {
-  dat = train[(train$expert_label != 0), ]
-  rownames(dat) = NULL
-  generic1 <- function(X, y) {
-    total_dat = cbind(X, y)
-    return(train(y ~ ., data =  total_dat, method="glm", family="binomial"))
+generic_logistic <- function(X, y) {
+  total_dat = cbind(X, y)
+  return(train(y ~ ., data =  total_dat, method="glm", family="binomial"))
+}
+loss_logisitc <- function(yhat, y) {
+  if("class" %in% names(yhat)) {
+    return(mean(yhat$class != y)) 
+  } else {
+    return(mean(yhat != y))
   }
-  generic_classifier = generic1 #lm(method="glm", family = "binomial")
+}
+#function to get CV for logistic regression
+getCVLogistic <- function(dataInput, mapIndices) {
+  dat = dataInput[(dataInput$expert_label != 0), ]
+  rownames(dat) = NULL
   
   training_features = dat[,5:12]
   training_labels = as.factor(dat$expert_label)
   
-  loss_inaccuracy <- function(yhat, y) {
-    return(mean(yhat$class != y))
-  }
-  lossFunction = loss1
-  train_whole = dat
-  CVgeneric_Optimized(generic_classifier, training_features, training_labels, K, lossFunction, train_whole, mapIndices)
+  CVgeneric_Optimized(generic_logistic, training_features, training_labels, K, loss_logisitc, 
+                      mapIndices)
 }
 #get Logistic CV Folds losses (inaccuracy)
 ptm <- proc.time()
@@ -563,37 +567,20 @@ logistic_ptm = proc.time() - ptm
 #get Logistic Test loss (inaccuracy)
 test = test[(test$expert_label != 0), ]
 logistic_testMod = train(as.factor(expert_label) ~ ., data =  test[,4:12], method="glm", family="binomial")
-logistic_testLoss = mean(predict(logistic_testMod) != test$expert_label)
+logistic_testLoss1 = mean(predict(logistic_testMod) != test$expert_label)
 
+test = image1
+test = test[(test$expert_label != 0), ]
+logistic_testMod = train(as.factor(expert_label) ~ ., data =  test[,4:12], method="glm", family="binomial")
+logistic_testLoss2 = mean(predict(logistic_testMod) != test$expert_label)
 
 #total CV results
-CVresultsMethod1 = data.frame(CVFold = c("Test", 1:K),
-                       Logisticregression = c(logistic_testLoss, LogisticLosses))
-names(CVresultsMethod1) = c("Data/CV Fold", "Logistic Reg (Cutoff .5)")
-CVresults
-
-prob=predict(logistic_testMod)
-g <- roc(expert_label ~ ., data = cbind(test[,4:12], prob))
-plot(g)  
-
-g
+CVresultsMethod = data.frame(CVFold = c("Test", 1:K),
+                       Logisticregression1 = c(logistic_testLoss1, LogisticLossesMethod1),
+                       Logisticregression2 = c(logistic_testLoss2, LogisticLossesMethod2))
+names(CVresultsMethod) = c("Data/CV Fold", "Logistic (Cutoff .5) Method 1", "Logistic (Cutoff .5) Method 2")
+CVresultsMethod
+write.csv(CVresultsMethod, "CVresults/CVLogistic.csv", row.names = FALSE)
 
 
 
-loss1 <- function(x,y) {mean(x == y)}
-lossFunction = loss1
-train_whole = dat
-CVgeneric(generic_classifier, training_features, training_labels, K, lossFunction, train_whole)
-
-
-
-image1 = read.csv("data/image1.csv")
-
-test1 = read.csv("data/test1.csv")
-
-train1 = train1[(train1$expert_label != 0), ]
-mod_fit = train(x = train1[,5:12], y=as.factor(train1$expert_label), method="glm", family="binomial")
-predicted = predict(mod_fit, newdata=train1[5:12])
-head(train)
-
-which(train$imageNum == 1 & train$x == xval & train$y == yval)
