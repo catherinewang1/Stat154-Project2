@@ -334,8 +334,6 @@ dev.off()
 
 
 
-
-
 #----------------------------------------------------------------------------
 #-------------------------- Question 2d -------------------------------------
 #----------------------------------------------------------------------------
@@ -423,6 +421,9 @@ CVgeneric <- function(generic_classifier, training_features, training_labels, K,
 # Note: we also added an input train_whole which requires the rows to be the same data points as in 
 #       training_features and training_labels, but requires the x, y coordinat data. This is because
 #       we split the data through squares, so we need to select squares (not just pixels)
+## ----------------------------------------------------------------------------
+## Example on how to use CVgeneric
+## ----------------------------------------------------------------------------
 dat = train[(train$expert_label != 0), ]
 rownames(dat) = NULL
 generic1 <- function(X, y) {
@@ -448,13 +449,16 @@ CVgeneric(generic_classifier, training_features, training_labels, K, lossFunctio
 
 
 # Question 3
+
 #----------------------------------------------------------------------------
 #-------------------------- Question 3a -------------------------------------
 #----------------------------------------------------------------------------
 
 
-
-# CV generic takes a lot of time to run, most of it is from splitting the data 
+## ----------------------------------------------------------------------------
+## Some optimization
+## ----------------------------------------------------------------------------
+## CV generic takes a lot of time to run, most of it is from splitting the data 
 # into squares, to speed up computation, we save the list of squares from both
 # METHOD 1 and METHOD 2 into intermediate MapIndices objects
 if(TRUE) {
@@ -536,6 +540,10 @@ CVgeneric_Optimized <- function(generic_classifier, training_features, training_
 }
 
 K = 10
+
+## ----------------------------------------------------------------------------
+## LOGISTIC REGRESSION
+## ----------------------------------------------------------------------------
 generic_logistic <- function(X, y) {
   total_dat = cbind(X, y)
   return(train(y ~ ., data =  total_dat, method="glm", family="binomial"))
@@ -575,12 +583,168 @@ logistic_testMod = train(as.factor(expert_label) ~ ., data =  test[,4:12], metho
 logistic_testLoss2 = mean(predict(logistic_testMod) != test$expert_label)
 
 #total CV results
-CVresultsMethod = data.frame(CVFold = c("Test", 1:K),
-                       Logisticregression1 = c(logistic_testLoss1, LogisticLossesMethod1),
-                       Logisticregression2 = c(logistic_testLoss2, LogisticLossesMethod2))
-names(CVresultsMethod) = c("Data/CV Fold", "Logistic (Cutoff .5) Method 1", "Logistic (Cutoff .5) Method 2")
-CVresultsMethod
-write.csv(CVresultsMethod, "CVresults/CVLogistic.csv", row.names = FALSE)
+CVresultsLogistic = data.frame(CVFold = c("Test", "Average Folds", 1:K),
+                       Logisticregression1 = c(logistic_testLoss1, mean(LogisticLossesMethod1), LogisticLossesMethod1),
+                       Logisticregression2 = c(logistic_testLoss2, mean(LogisticLossesMethod2), LogisticLossesMethod2))
+names(CVresultsLogistic) = c("Data/CV Fold", "Logistic (Cutoff .5) Method 1", "Logistic (Cutoff .5) Method 2")
+write.csv(CVresultsLogistic, "CVresults/CVLogistic.csv", row.names = FALSE)
+
+
+## ----------------------------------------------------------------------------
+## LDA
+## ----------------------------------------------------------------------------
+generic_lda <- function(X, y) {
+  total_dat = cbind(X, y)
+  return(lda(y ~ ., data =  total_dat))
+}
+loss_lda <- function(yhat, y) {
+  if("class" %in% names(yhat)) {
+    return(mean(yhat$class != y)) 
+  } else {
+    return(mean(yhat != y))
+  }
+}
+#function to get CV for lda classification
+getCVlda <- function(dataInput, mapIndices) {
+  dat = dataInput[(dataInput$expert_label != 0), ]
+  rownames(dat) = NULL
+  
+  training_features = dat[,5:12]
+  training_labels = as.factor(dat$expert_label)
+  
+  CVgeneric_Optimized(generic_lda, training_features, training_labels, K, loss_lda, 
+                      mapIndices)
+}
+#get lda CV Folds losses (inaccuracy)
+ptm <- proc.time()
+ldaLossesMethod1 = getCVlda(method1_train, Method1MapIndices)
+ldaLossesMethod2 = getCVlda(method2_train, Method2MapIndices)
+lda_ptm = proc.time() - ptm
+
+#get lda Test loss (inaccuracy)
+test = test[(test$expert_label != 0), ]
+lda_testMod = lda(as.factor(expert_label) ~ ., data =  test[,4:12])
+lda_testLoss1 = mean(predict(lda_testMod)$class != test$expert_label)
+
+test = image1
+test = test[(test$expert_label != 0), ]
+lda_testMod = lda(as.factor(expert_label) ~ ., data =  test[,4:12])
+lda_testLoss2 = mean(predict(lda_testMod)$class != test$expert_label)
+
+#total CV results
+CVresultsLDA = data.frame(CVFold = c("Test","Average Folds", 1:K),
+                          lda1 = c(lda_testLoss1, mean(ldaLossesMethod1), ldaLossesMethod1),
+                          lda2 = c(lda_testLoss2, mean(ldaLossesMethod2), ldaLossesMethod2))
+names(CVresultsLDA) = c("Data/CV Fold", "LDA Method 1", "LDA Method 2")
+write.csv(CVresultsMethod, "CVresults/CVlda.csv", row.names = FALSE)
+
+
+
+
+## ----------------------------------------------------------------------------
+## QDA
+## ----------------------------------------------------------------------------
+generic_qda <- function(X, y) {
+  total_dat = cbind(X, y)
+  return(qda(y ~ ., data =  total_dat))
+}
+loss_qda <- function(yhat, y) {
+  if("class" %in% names(yhat)) {
+    return(mean(yhat$class != y)) 
+  } else {
+    return(mean(yhat != y))
+  }
+}
+#function to get CV for qda classification
+getCVqda <- function(dataInput, mapIndices) {
+  dat = dataInput[(dataInput$expert_label != 0), ]
+  rownames(dat) = NULL
+  
+  training_features = dat[,5:12]
+  training_labels = as.factor(dat$expert_label)
+  
+  CVgeneric_Optimized(generic_qda, training_features, training_labels, K, loss_qda, 
+                      mapIndices)
+}
+#get qda CV Folds losses (inaccuracy)
+ptm <- proc.time()
+qdaLossesMethod1 = getCVqda(method1_train, Method1MapIndices)
+qdaLossesMethod2 = getCVqda(method2_train, Method2MapIndices)
+qda_ptm = proc.time() - ptm
+
+#get qda Test loss (inaccuracy)
+test = test[(test$expert_label != 0), ]
+qda_testMod = qda(as.factor(expert_label) ~ ., data =  test[,4:12])
+qda_testLoss1 = mean(predict(qda_testMod)$class != test$expert_label)
+
+test = image1
+test = test[(test$expert_label != 0), ]
+qda_testMod = qda(as.factor(expert_label) ~ ., data =  test[,4:12])
+qda_testLoss2 = mean(predict(qda_testMod)$class != test$expert_label)
+
+#total CV results
+CVresultsQDA = data.frame(CVFold = c("Test","Average Folds", 1:K),
+                          qda1 = c(qda_testLoss1, mean(qdaLossesMethod1), qdaLossesMethod1),
+                          qda2 = c(qda_testLoss2, mean(qdaLossesMethod2), qdaLossesMethod2))
+names(CVresultsLDA) = c("Data/CV Fold", "QDA Method 1", "QDA Method 2")
+write.csv(CVresultsMethod, "CVresults/CVqda.csv", row.names = FALSE)
+
+
+#Display the results so far
+cbind(CVresultsLDA, CVresultsLDA[,c(2,3)], CVresultsQDA[,c(2,3)])
+
+
+## ----------------------------------------------------------------------------
+## SVM
+## ----------------------------------------------------------------------------
+generic_qda <- function(X, y) {
+  total_dat = cbind(X, y)
+  return(svm(y ~ ., data = dat, kernel = "linear", cost = 10, scale = FALSE))
+}
+loss_qda <- function(yhat, y) {
+  if("class" %in% names(yhat)) {
+    return(mean(yhat$class != y)) 
+  } else {
+    return(mean(yhat != y))
+  }
+}
+#function to get CV for qda classification
+getCVqda <- function(dataInput, mapIndices) {
+  dat = dataInput[(dataInput$expert_label != 0), ]
+  rownames(dat) = NULL
+  
+  training_features = dat[,5:12]
+  training_labels = as.factor(dat$expert_label)
+  
+  CVgeneric_Optimized(generic_qda, training_features, training_labels, K, loss_qda, 
+                      mapIndices)
+}
+#get qda CV Folds losses (inaccuracy)
+ptm <- proc.time()
+qdaLossesMethod1 = getCVqda(method1_train, Method1MapIndices)
+qdaLossesMethod2 = getCVqda(method2_train, Method2MapIndices)
+qda_ptm = proc.time() - ptm
+
+#get qda Test loss (inaccuracy)
+test = test[(test$expert_label != 0), ]
+qda_testMod = qda(as.factor(expert_label) ~ ., data =  test[,4:12])
+qda_testLoss1 = mean(predict(qda_testMod)$class != test$expert_label)
+
+test = image1
+test = test[(test$expert_label != 0), ]
+qda_testMod = qda(as.factor(expert_label) ~ ., data =  test[,4:12])
+qda_testLoss2 = mean(predict(qda_testMod)$class != test$expert_label)
+
+#total CV results
+CVresultsQDA = data.frame(CVFold = c("Test","Average Folds", 1:K),
+                          qda1 = c(qda_testLoss1, mean(qdaLossesMethod1), qdaLossesMethod1),
+                          qda2 = c(qda_testLoss2, mean(qdaLossesMethod2), qdaLossesMethod2))
+names(CVresultsLDA) = c("Data/CV Fold", "QDA Method 1", "QDA Method 2")
+write.csv(CVresultsMethod, "CVresults/CVqda.csv", row.names = FALSE)
+
+
+#Display the results so far
+cbind(CVresultsLDA, CVresultsLDA[,c(2,3)], CVresultsQDA[,c(2,3)])
 
 
 
