@@ -5,7 +5,7 @@ library(gridExtra)
 library(GGally)
 library(caret)
 library(hash)
-
+library(MASS)
 
 
 #read in the raw data
@@ -19,6 +19,9 @@ column_names = c("y", "x", "expert_label", "NDAI", "SD", "CORR",
 colnames(image1) = column_names
 colnames(image2) = column_names
 colnames(image3) = column_names
+image1$imageNum = 1
+image2$imageNum = 2
+image3$imageNum = 3
 
 image_all = rbind(image1, image2, image3)
 write.csv(image1, "data/image1.csv", row.names = FALSE)
@@ -144,7 +147,7 @@ for(i in 1:nrow(test_chosen)) {
   y_chosen = test_chosen[i, "y"]
   test_1 = rbind(test_1, image1[(x_square == x_chosen & y_square == y_chosen), ])
 }
-train_1 = cbind(imageNum = 1, train_1)
+#train_1 = cbind(imageNum = 1, train_1)
 write.csv(train_1, "data/train1.csv", row.names = FALSE)
 write.csv(validation_1, "data/validation1.csv", row.names = FALSE)
 write.csv(test_1, "data/test1.csv", row.names = FALSE)
@@ -183,7 +186,7 @@ for(i in 1:nrow(test_chosen)) {
   y_chosen = test_chosen[i, "y"]
   test_2 = rbind(test_2, image2[(x_square == x_chosen & y_square == y_chosen), ])
 }
-train_2 = cbind(imageNum = 2, train_2)
+#train_2 = cbind(imageNum = 2, train_2)
 write.csv(train_2, "data/train2.csv", row.names = FALSE)
 write.csv(validation_2, "data/validation2.csv", row.names = FALSE)
 write.csv(test_2, "data/test2.csv", row.names = FALSE)
@@ -221,7 +224,7 @@ for(i in 1:nrow(test_chosen)) {
   y_chosen = test_chosen[i, "y"]
   test_3 = rbind(test_3, image3[(x_square == x_chosen & y_square == y_chosen), ])
 }
-train_3 = cbind(imageNum = 3, train_3)
+#train_3 = cbind(imageNum = 3, train_3)
 write.csv(train_3, "data/train3.csv", row.names = FALSE)
 write.csv(validation_3, "data/validation3.csv", row.names = FALSE)
 write.csv(test_3, "data/test3.csv", row.names = FALSE)
@@ -383,57 +386,187 @@ CVgeneric_genericMatrix(generic_classifier, training_features, training_labels, 
 head(train1)
 
 
-
+K = 10
 # Now: CVgeneric for generic classifier, but specific to our 
 # training data and how we specifically split it
-# ie 
-K = 10
-mapIndices = hash()
-dat = train1
-dat$x10 = floor(dat$x / 10)* 10
-dat$y10 = floor(dat$y / 10)* 10
-d = dat %>% group_by(x10, y10) %>% summarise(count = n())
-for(i in nrow(d)) {
-  xval = dat[i, "x"]
-  yval = dat[i, "y"]
-  key = paste0(xval,",", yval)
-  
+# ie there is an extra input (whole training), which has the same number of rows as the 
+# training_features but with the x and y coordinate values (so we know how to divide the data)
+CVgeneric <- function(generic_classifier, training_features, training_labels, K, lossFunction, train_whole) {
+  #divide the data into K folds through method 1 
+  dat = train_whole
+  dat$x10 = floor(dat$x / 10)* 10
+  dat$y10 = floor(dat$y / 10)* 10
+  d = dat %>% group_by(imageNum, x10, y10) %>% summarise(count = n())
+  mapIndices <- vector("list", nrow(d))
+  z = vector("list", nrow(d))
+  for(i in 1:nrow(d)) {
+    imageNumval = d$imageNum[i]
+    xval = d$x10[i]
+    yval = d$y10[i]
+    key = paste0(xval,",", yval)
+    indices = which(dat$imageNum == imageNumval & dat$x10 == xval & dat$y10 == yval)
+    mapIndices[[i]] <- indices
+  }
+  #for each fold, find the loss
+  losses = c()
+  folds = createFolds(1:nrow(d), k=K)
+  for(k in 1:K) {
+    CVtrain = unlist(mapIndices[folds[[k]]])
+    CVvalid = unlist(mapIndices[-folds[[k]]])
+    
+    #get the inputs for the classifier
+    temp_features_val = training_features[CVvalid, ]
+    temp_features_train = training_features[CVtrain, ]
+    
+    temp_labeled_val = training_labels[CVvalid]
+    temp_labeled_train = training_labels[CVtrain]
+    
+    #run the classifier
+    mod_fit = generic_classifier(temp_features_train, temp_labeled_train)
+    predicted = predict(mod_fit, newdata=temp_features_val)
+    loss = lossFunction(predicted, temp_labeled_val)
+    losses = c(losses, loss)
+  }
+  #return
+  return(losses)
 }
-i=1
-mapIndices[["hello"]] = as.list(c(1, 2, 3))
-mapIndices
-c(1, 2, 3)
 
-folds = createFolds(training_labels, k=K)
-losses = c()
-for(i in 1:K) {
-  #get the inputs for the classifier
-  temp_features_val = training_features[folds[[i]], ]
-  temp_features_train = training_features[-folds[[i]], ]
-  temp_labeled_val = training_labels[folds[[i]]]
-  temp_labeled_train = training_labels[-folds[[i]]]
-  
-  #run the classifier
-  mod_fit = generic_classifier(temp_features_train, temp_labeled_train)
-  predicted = predict(mod_fit, newdata=temp_features_val)
-  loss = lossFunction(predicted, temp_labeled_val)
-  losses = c(losses, loss)
+#An example of how to run CV K=10 with logisitic regression on the entire training data set
+# Note: we assume that generic_classifier takes in TrainingData (X), and Labels (y), so it
+#       is up to the user to wrap R training functions to include other options such as
+#       method="glm", family="binomial (How to wrap it is shown below in generic1)
+# Note: we also added an input train_whole which requires the rows to be the same data points as in 
+#       training_features and training_labels, but requires the x, y coordinat data. This is because
+#       we split the data through squares, so we need to select squares (not just pixels)
+dat = train[(train$expert_label != 0), ]
+rownames(dat) = NULL
+generic1 <- function(X, y) {
+  total_dat = cbind(X, y)
+  return(train(y ~ ., data =  total_dat, method="glm", family="binomial"))
 }
-return(losses)
+
+generic2 <- function(X, y) {
+  total_dat = cbind(X, y)
+  return(lda(y ~ ., data =  total_dat))
+}
+generic_classifier = generic2 #lm(method="glm", family = "binomial")
+
+training_features = dat[,5:11]
+training_labels = as.factor(dat$expert_label)
+K = 10
+
+loss1 <- function(x,y) {mean(x != y)}
+lossFunction = loss1
+train_whole = dat
+CVgeneric(generic_classifier, training_features, training_labels, K, lossFunction, train_whole)
+
+
 
 # Question 3
 #----------------------------------------------------------------------------
 #-------------------------- Question 3a -------------------------------------
 #----------------------------------------------------------------------------
 
+getCVLogistic <- function(train) {
+  dat = train[(train$expert_label != 0), ]
+  rownames(dat) = NULL
+  generic1 <- function(X, y) {
+    total_dat = cbind(X, y)
+    return(train(y ~ ., data =  total_dat, method="glm", family="binomial"))
+  }
+  generic_classifier = generic1 #lm(method="glm", family = "binomial")
+  
+  training_features = dat[,5:11]
+  training_labels = as.factor(dat$expert_label)
+  K = 10
+}
+  
+# METHOD 1: Get Method1MapIndices (to speed computation)
+#divide the data into squares by METHOD 1
+train = read.csv("data/train.csv")
+validation = read.csv("data/validation.csv")
+test = read.csv("data/test.csv")
+dat = rbind(train, validation)
+dat = train[(train$expert_label != 0), ]
+
+dat$x10 = floor(dat$x / 10)* 10
+dat$y10 = floor(dat$y / 10)* 10
+d = dat %>% group_by(imageNum, x10, y10) %>% summarise(count = n())
+mapIndices <- vector("list", nrow(d))
+z = vector("list", nrow(d))
+for(i in 1:nrow(d)) {
+  imageNumval = d$imageNum[i]
+  xval = d$x10[i]
+  yval = d$y10[i]
+  key = paste0(xval,",", yval)
+  indices = which(dat$imageNum == imageNumval & dat$x10 == xval & dat$y10 == yval)
+  mapIndices[[i]] <- indices
+}
+Method1MapIndices = mapIndices
+
+# METHOD 2: Get Method2MapIndices (to speed computation)
+#divide the data into squares by METHOD 2
+image2 = read.csv("data/image2.csv")
+image3 = read.csv("data/image4.csv")
+dat = rbind(image2, image3)
+dat = train[(train$expert_label != 0), ]
+
+dat$x10 = floor(dat$x / 10)* 10
+dat$y10 = floor(dat$y / 10)* 10
+d = dat %>% group_by(imageNum, x10, y10) %>% summarise(count = n())
+mapIndices <- vector("list", nrow(d))
+z = vector("list", nrow(d))
+for(i in 1:nrow(d)) {
+  imageNumval = d$imageNum[i]
+  xval = d$x10[i]
+  yval = d$y10[i]
+  key = paste0(xval,",", yval)
+  indices = which(dat$imageNum == imageNumval & dat$x10 == xval & dat$y10 == yval)
+  mapIndices[[i]] <- indices
+}
+Method2MapIndices = mapIndices
+
+
+CVgeneric_Optimized <- function(generic_classifier, training_features, training_labels, K, lossFunction, train_whole) {
+
+  #for each fold, find the loss
+  losses = c()
+  folds = createFolds(1:nrow(d), k=K)
+  for(k in 1:K) {
+    CVtrain = unlist(mapIndices[folds[[k]]])
+    CVvalid = unlist(mapIndices[-folds[[k]]])
+    
+    #get the inputs for the classifier
+    temp_features_val = training_features[CVvalid, ]
+    temp_features_train = training_features[CVtrain, ]
+    
+    temp_labeled_val = training_labels[CVvalid]
+    temp_labeled_train = training_labels[CVtrain]
+    
+    #run the classifier
+    mod_fit = generic_classifier(temp_features_train, temp_labeled_train)
+    predicted = predict(mod_fit, newdata=temp_features_val)
+    loss = lossFunction(predicted, temp_labeled_val)
+    losses = c(losses, loss)
+  }
+  #return
+  return(losses)
+}
+
+loss1 <- function(x,y) {mean(x == y)}
+lossFunction = loss1
+train_whole = dat
+CVgeneric(generic_classifier, training_features, training_labels, K, lossFunction, train_whole)
+
 
 
 image1 = read.csv("data/image1.csv")
-train1 = read.csv("data/train1.csv")
-validation1 = read.csv("data/validation1.csv")
+
 test1 = read.csv("data/test1.csv")
 
 train1 = train1[(train1$expert_label != 0), ]
 mod_fit = train(x = train1[,5:12], y=as.factor(train1$expert_label), method="glm", family="binomial")
 predicted = predict(mod_fit, newdata=train1[5:12])
-head(train1)
+head(train)
+
+which(train$imageNum == 1 & train$x == xval & train$y == yval)
