@@ -4,6 +4,7 @@ library(dplyr)
 library(gridExtra)
 library(GGally)
 library(caret)
+library(hash)
 
 
 
@@ -20,10 +21,10 @@ colnames(image2) = column_names
 colnames(image3) = column_names
 
 image_all = rbind(image1, image2, image3)
-write.csv(image1, "data/image1.csv")
-write.csv(image2, "data/image2.csv")
-write.csv(image3, "data/image2.csv")
-write.csv(image_all, "data/image_all.csv")
+write.csv(image1, "data/image1.csv", row.names = FALSE)
+write.csv(image2, "data/image2.csv", row.names = FALSE)
+write.csv(image3, "data/image2.csv", row.names = FALSE)
+write.csv(image_all, "data/image_all.csv", row.names = FALSE)
 
 #----------------------------------------------------------------------------
 #-------------------------- Question 1b -------------------------------------
@@ -143,9 +144,10 @@ for(i in 1:nrow(test_chosen)) {
   y_chosen = test_chosen[i, "y"]
   test_1 = rbind(test_1, image1[(x_square == x_chosen & y_square == y_chosen), ])
 }
-write.csv(train_1, "data/train1.csv")
-write.csv(validation_1, "data/validation1.csv")
-write.csv(test_1, "data/test1.csv")
+train_1 = cbind(imageNum = 1, train_1)
+write.csv(train_1, "data/train1.csv", row.names = FALSE)
+write.csv(validation_1, "data/validation1.csv", row.names = FALSE)
+write.csv(test_1, "data/test1.csv", row.names = FALSE)
 
 
 #image 2:
@@ -181,9 +183,10 @@ for(i in 1:nrow(test_chosen)) {
   y_chosen = test_chosen[i, "y"]
   test_2 = rbind(test_2, image2[(x_square == x_chosen & y_square == y_chosen), ])
 }
-write.csv(train_2, "data/train2.csv")
-write.csv(validation_2, "data/validation2.csv")
-write.csv(test_2, "data/test2.csv")
+train_2 = cbind(imageNum = 2, train_2)
+write.csv(train_2, "data/train2.csv", row.names = FALSE)
+write.csv(validation_2, "data/validation2.csv", row.names = FALSE)
+write.csv(test_2, "data/test2.csv", row.names = FALSE)
 
 #image 3:
 x_square = floor(image3$x / 10)*10
@@ -218,17 +221,18 @@ for(i in 1:nrow(test_chosen)) {
   y_chosen = test_chosen[i, "y"]
   test_3 = rbind(test_3, image3[(x_square == x_chosen & y_square == y_chosen), ])
 }
-write.csv(train_3, "data/train3.csv")
-write.csv(validation_3, "data/validation3.csv")
-write.csv(test_3, "data/test3.csv")
+train_3 = cbind(imageNum = 3, train_3)
+write.csv(train_3, "data/train3.csv", row.names = FALSE)
+write.csv(validation_3, "data/validation3.csv", row.names = FALSE)
+write.csv(test_3, "data/test3.csv", row.names = FALSE)
 
 #total dataset
 train = rbind(train_1, train_2, train_3)
 validation = rbind(validation_1, validation_2, validation_3)
 test = rbind(test_1, test_2, test_3)
-write.csv(train, "data/train.csv")
-write.csv(validation, "data/validation.csv")
-write.csv(test, "data/test.csv")
+write.csv(train, "data/train.csv", row.names = FALSE)
+write.csv(validation, "data/validation.csv", row.names = FALSE)
+write.csv(test, "data/test.csv", row.names = FALSE)
 
 #sanity checks
 ## plot the map of the training data (put into a if statement so it can be easily compressed)
@@ -300,6 +304,13 @@ if(TRUE) {
 }
 
 
+##METHOD 2: CHOOSE 1 image to be test, split other 2 into training and validation
+set.seed(154039827)
+image_test_num = sample(c(1, 2, 3), 1) # = 1
+method2_test = image1
+method2_train = rbind(train_2, train_3)
+method2_validation = rbind(test_2, validation_2, test_3, validation_3)
+
 #----------------------------------------------------------------------------
 #-------------------------- Question 2b -------------------------------------
 #----------------------------------------------------------------------------
@@ -325,11 +336,20 @@ dev.off()
 #-------------------------- Question 2d -------------------------------------
 #----------------------------------------------------------------------------
 set.seed(154)
-CVgeneric <- function(generic_classifier, training_features, training_labels, K, lossFunction) {
-  #assumes generic_classifier(trainingLabels ~ . data = trainingFeatures)
-  #loss function takes in yhat, y
+CVgeneric_genericMatrix <- function(generic_classifier, training_features, training_labels, K, lossFunction) {
+  #assumes generic_classifier(X, y) as inputs
+  #     while some generic functions take in a formula (y~.,X),
+  #     most generic classifiers are okay with these inputs as well
+  #     If classifier only takes formula, then write a helper function as in:
+  #     generic1 <- function(X, y) {return(train(y ~ ., data =  X, method="glm", family="binomial"))}
+  #     writing it with X,y rather than a formula allows other inputs into the generic function 
+  #     like method, family, etc...
+  #lossFunction(yhat, y): takes in yhat, y as inputs
   #returns a vector length K of the loss of each fold
-  folds = createFolds(training_labels, k=K, )
+  #Note: CV should be split through part 2a's method, however this depends on which method was used
+  #      to split. Therefore, that split cannot be implemented GENERICALLY, which means it's up to the
+  #      user to input the correct matrices.
+  folds = createFolds(training_labels, k=K)
   losses = c()
   for(i in 1:K) {
     #get the inputs for the classifier
@@ -339,7 +359,7 @@ CVgeneric <- function(generic_classifier, training_features, training_labels, K,
     temp_labeled_train = training_labels[-folds[[i]]]
     
     #run the classifier
-    mod_fit = generic_classifier(temp_labeled_train ~ ., data = temp_features_train)
+    mod_fit = generic_classifier(temp_features_train, temp_labeled_train)
     predicted = predict(mod_fit, newdata=temp_features_val)
     loss = lossFunction(predicted, temp_labeled_val)
     losses = c(losses, loss)
@@ -348,21 +368,72 @@ CVgeneric <- function(generic_classifier, training_features, training_labels, K,
 }
 
 #sanity check
-training_features = train_1[,4:11]
-training_labels = train_1[,3]
+training_features = train1[,5:11]
+training_labels = train1$expert_label
 K = 10
-folds = createFolds(training_labels, k=K)
-generic_classifier = lm
+generic1 <- function(X, y) {
+  return(train(y ~ ., data =  X, method="glm", family="binomial"))
+}
+generic_classifier = generic1 #lm(method="glm", family = "binomial")
 temp_funct <- function(x,y) {mean((x-y)^2)}
 lossFunction =temp_funct
 
-CVgeneric(generic_classifier, training_features, training_labels, K, lossFunction)
+CVgeneric_genericMatrix(generic_classifier, training_features, training_labels, K, lossFunction)
+
+head(train1)
 
 
 
+# Now: CVgeneric for generic classifier, but specific to our 
+# training data and how we specifically split it
+# ie 
+K = 10
+mapIndices = hash()
+dat = train1
+dat$x10 = floor(dat$x / 10)* 10
+dat$y10 = floor(dat$y / 10)* 10
+d = dat %>% group_by(x10, y10) %>% summarise(count = n())
+for(i in nrow(d)) {
+  xval = dat[i, "x"]
+  yval = dat[i, "y"]
+  key = paste0(xval,",", yval)
+  
+}
+i=1
+mapIndices[["hello"]] = as.list(c(1, 2, 3))
+mapIndices
+c(1, 2, 3)
+
+folds = createFolds(training_labels, k=K)
+losses = c()
+for(i in 1:K) {
+  #get the inputs for the classifier
+  temp_features_val = training_features[folds[[i]], ]
+  temp_features_train = training_features[-folds[[i]], ]
+  temp_labeled_val = training_labels[folds[[i]]]
+  temp_labeled_train = training_labels[-folds[[i]]]
+  
+  #run the classifier
+  mod_fit = generic_classifier(temp_features_train, temp_labeled_train)
+  predicted = predict(mod_fit, newdata=temp_features_val)
+  loss = lossFunction(predicted, temp_labeled_val)
+  losses = c(losses, loss)
+}
+return(losses)
+
+# Question 3
+#----------------------------------------------------------------------------
+#-------------------------- Question 3a -------------------------------------
+#----------------------------------------------------------------------------
 
 
 
+image1 = read.csv("data/image1.csv")
+train1 = read.csv("data/train1.csv")
+validation1 = read.csv("data/validation1.csv")
+test1 = read.csv("data/test1.csv")
 
-
-
+train1 = train1[(train1$expert_label != 0), ]
+mod_fit = train(x = train1[,5:12], y=as.factor(train1$expert_label), method="glm", family="binomial")
+predicted = predict(mod_fit, newdata=train1[5:12])
+head(train1)
