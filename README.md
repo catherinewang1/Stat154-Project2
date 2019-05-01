@@ -9,7 +9,7 @@ Repo for Spring 2019 Stat 154 Project 2
 The Final Report pdf is the final submission for this project. (This pdf was generated on google docs, and the corresponding word file is also included for reproducibility.)
 
 ## Reproducibility:
-To reproduce all the figures, graphs, tables, and results from the final report, run through the R code in the `project2.R` file. (Make sure you have installed the required libraries such as `ggplot`, `dplyr`, `gridExtra`, `GGally`, etc.)
+To reproduce all the figures, graphs, tables, and results from the final report, run through the R code in the `project2.R` file. (Make sure you have installed the required libraries such as `ggplot`, `dplyr`, `gridExtra`, `GGally`, `caret`, etc.)
 
 
 + note: in the script, it saves the images in between in the `imgs` folder, however these may result in lower quality (resolution) images than the actual final report contains. To get the higher quality images, run the code and zoom in in RStudio. 
