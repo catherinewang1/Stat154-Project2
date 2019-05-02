@@ -7,6 +7,7 @@ library(caret)
 library(hash)
 library(MASS)
 library(pROC)
+library(e1071)
 
 
 #read in the raw data
@@ -636,7 +637,7 @@ CVresultsLDA = data.frame(CVFold = c("Test","Average Folds", 1:K),
                           lda1 = c(lda_testLoss1, mean(ldaLossesMethod1), ldaLossesMethod1),
                           lda2 = c(lda_testLoss2, mean(ldaLossesMethod2), ldaLossesMethod2))
 names(CVresultsLDA) = c("Data/CV Fold", "LDA Method 1", "LDA Method 2")
-write.csv(CVresultsMethod, "CVresults/CVlda.csv", row.names = FALSE)
+write.csv(CVresultsLDA, "CVresults/CVlda.csv", row.names = FALSE)
 
 
 
@@ -686,22 +687,19 @@ qda_testLoss2 = mean(predict(qda_testMod)$class != test$expert_label)
 CVresultsQDA = data.frame(CVFold = c("Test","Average Folds", 1:K),
                           qda1 = c(qda_testLoss1, mean(qdaLossesMethod1), qdaLossesMethod1),
                           qda2 = c(qda_testLoss2, mean(qdaLossesMethod2), qdaLossesMethod2))
-names(CVresultsLDA) = c("Data/CV Fold", "QDA Method 1", "QDA Method 2")
-write.csv(CVresultsMethod, "CVresults/CVqda.csv", row.names = FALSE)
+names(CVresultsQDA) = c("Data/CV Fold", "QDA Method 1", "QDA Method 2")
+write.csv(CVresultsQDA, "CVresults/CVqda.csv", row.names = FALSE)
 
-
-#Display the results so far
-cbind(CVresultsLDA, CVresultsLDA[,c(2,3)], CVresultsQDA[,c(2,3)])
 
 
 ## ----------------------------------------------------------------------------
 ## SVM
 ## ----------------------------------------------------------------------------
-generic_qda <- function(X, y) {
+generic_svm <- function(X, y) {
   total_dat = cbind(X, y)
   return(svm(y ~ ., data = dat, kernel = "linear", cost = 10, scale = FALSE))
 }
-loss_qda <- function(yhat, y) {
+loss_svm <- function(yhat, y) {
   if("class" %in% names(yhat)) {
     return(mean(yhat$class != y)) 
   } else {
@@ -709,42 +707,44 @@ loss_qda <- function(yhat, y) {
   }
 }
 #function to get CV for qda classification
-getCVqda <- function(dataInput, mapIndices) {
+getCVsvm <- function(dataInput, mapIndices) {
   dat = dataInput[(dataInput$expert_label != 0), ]
   rownames(dat) = NULL
   
   training_features = dat[,5:12]
   training_labels = as.factor(dat$expert_label)
   
-  CVgeneric_Optimized(generic_qda, training_features, training_labels, K, loss_qda, 
+  CVgeneric_Optimized(generic_svm, training_features, training_labels, K, loss_svm, 
                       mapIndices)
 }
-#get qda CV Folds losses (inaccuracy)
+#get svm CV Folds losses (inaccuracy)
 ptm <- proc.time()
-qdaLossesMethod1 = getCVqda(method1_train, Method1MapIndices)
-qdaLossesMethod2 = getCVqda(method2_train, Method2MapIndices)
-qda_ptm = proc.time() - ptm
+svmLossesMethod1 = getCVsvm(method1_train, Method1MapIndices)
+svmLossesMethod2 = getCVsvm(method2_train, Method2MapIndices)
+svm_ptm = proc.time() - ptm
 
-#get qda Test loss (inaccuracy)
+#get svm Test loss (inaccuracy)
 test = test[(test$expert_label != 0), ]
-qda_testMod = qda(as.factor(expert_label) ~ ., data =  test[,4:12])
-qda_testLoss1 = mean(predict(qda_testMod)$class != test$expert_label)
-
+ptm <- proc.time()
+svm_testMod = svm(as.factor(expert_label) ~ ., data =  test[,4:12])
+svm_testLoss1 = mean(predict(svm_testMod) != test$expert_label)
+svm_ptm = proc.time() - ptm
 test = image1
 test = test[(test$expert_label != 0), ]
-qda_testMod = qda(as.factor(expert_label) ~ ., data =  test[,4:12])
-qda_testLoss2 = mean(predict(qda_testMod)$class != test$expert_label)
+svm_testMod = svm(as.factor(expert_label) ~ ., data =  test[,4:12])
+svm_testLoss2 = mean(predict(svm_testMod)$class != test$expert_label)
 
 #total CV results
-CVresultsQDA = data.frame(CVFold = c("Test","Average Folds", 1:K),
-                          qda1 = c(qda_testLoss1, mean(qdaLossesMethod1), qdaLossesMethod1),
-                          qda2 = c(qda_testLoss2, mean(qdaLossesMethod2), qdaLossesMethod2))
-names(CVresultsLDA) = c("Data/CV Fold", "QDA Method 1", "QDA Method 2")
-write.csv(CVresultsMethod, "CVresults/CVqda.csv", row.names = FALSE)
+CVresultsSVM = data.frame(CVFold = c("Test","Average Folds", 1:K),
+                          svm1 = c(svm_testLoss1, mean(svmLossesMethod1), svmLossesMethod1),
+                          svm2 = c(svm_testLoss2, mean(svmLossesMethod2), svmLossesMethod2))
+names(CVresultsSVM) = c("Data/CV Fold", "SVM Method 1", "SVM Method 2")
+write.csv(CVresultsSVM, "CVresults/CVsvm.csv", row.names = FALSE)
 
 
 #Display the results so far
-cbind(CVresultsLDA, CVresultsLDA[,c(2,3)], CVresultsQDA[,c(2,3)])
+cbind(CVresultsLogistic, CVresultsLDA[,c(2,3)], CVresultsQDA[,c(2,3)], CVresultsSVM[,c(2,3)])
 
-
+library(rpud)
+rpusvm(test[,5:12], as.factor(test$expert_label), type="eps-regression", scale=TRUE)
 
