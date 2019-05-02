@@ -18,9 +18,9 @@ method1_test = method1_test[(method1_test$expert_label) != 0, ]
 method2_train = rbind(read.csv("data/train2.csv"), read.csv("data/train3.csv"))
 method2_train = method2_train[(method2_train$expert_label != 0), ]
 method2_val = rbind(read.csv("data/validation2.csv"), read.csv("data/validation3.csv"))
-method2_val[(method2_val$expert_label != 0), ]
+metho2_val = method2_val[(method2_val$expert_label != 0), ]
 method2_test = read.csv("data/image1.csv")
-method2_test[(method2_test$expert_label != 0), ]
+method2_test = method2_test[(method2_test$expert_label != 0), ]
 
 
 getFPRandTPR <- function(yprob, y, cutoffs) {
@@ -124,11 +124,12 @@ ROC_svm2 = ggplot(svm_ROC_2, aes(x = FPR, y = TPR)) + geom_line()+
 
 
 
-
+png(filename = "imgs/Q3b_ROC.png", width = 1920, height = 1080)
 grid.arrange(ROC_log1, ROC_log2, 
              ROC_lda1, ROC_lda2, 
              ROC_qda1, ROC_qda2,
              ROC_svm1, ROC_svm2, nrow = 2)
+dev.off()
 
 grid.arrange(ROC_log1, ROC_log2, 
              ROC_lda1, ROC_lda2, 
