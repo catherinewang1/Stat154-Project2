@@ -463,6 +463,20 @@ CVgeneric(generic_classifier, training_features, training_labels, K, lossFunctio
 # into squares, to speed up computation, we save the list of squares from both
 # METHOD 1 and METHOD 2 into intermediate MapIndices objects
 if(TRUE) {
+  
+  method1_train = read.csv("data/train.csv")
+  method1_train = method1_train[(method1_train$expert_label) != 0, ]
+  method1_val = read.csv("data/validation.csv")
+  method1_val = method1_val[(method1_val$expert_label) != 0, ]
+  method1_test = read.csv("data/test.csv")
+  method1_test = method1_test[(method1_test$expert_label) != 0, ]
+  
+  method2_train = rbind(read.csv("data/train2.csv"), read.csv("data/train3.csv"))
+  method2_train = method2_train[(method2_train$expert_label != 0), ]
+  method2_val = rbind(read.csv("data/validation2.csv"), read.csv("data/validation3.csv"))
+  metho2_val = method2_val[(method2_val$expert_label != 0), ]
+  method2_test = read.csv("data/image1.csv")
+  method2_test = method2_test[(method2_test$expert_label != 0), ]
   # METHOD 1: Get Method1MapIndices (to speed computation)
   #divide the data into squares by METHOD 1
   train = read.csv("data/train.csv")
@@ -487,6 +501,8 @@ if(TRUE) {
     mapIndices[[i]] <- indices
   }
   Method1MapIndices = mapIndices
+  
+  
   
   # METHOD 2: Get Method2MapIndices (to speed computation)
   #divide the data into squares by METHOD 2
@@ -574,14 +590,11 @@ LogisticLossesMethod2 = getCVLogistic(method2_train, Method2MapIndices)
 logistic_ptm = proc.time() - ptm
 
 #get Logistic Test loss (inaccuracy)
-test = test[(test$expert_label != 0), ]
-logistic_testMod = train(as.factor(expert_label) ~ ., data =  test[,4:12], method="glm", family="binomial")
-logistic_testLoss1 = mean(predict(logistic_testMod) != test$expert_label)
+logistic_testMod = train(as.factor(expert_label) ~ ., data =  method1_train[,4:12], method="glm", family="binomial")
+logistic_testLoss1 = mean(predict(logistic_testMod, newdata = method1_test[,5:12]) != method1_test$expert_label)
 
-test = image1
-test = test[(test$expert_label != 0), ]
-logistic_testMod = train(as.factor(expert_label) ~ ., data =  test[,4:12], method="glm", family="binomial")
-logistic_testLoss2 = mean(predict(logistic_testMod) != test$expert_label)
+logistic_testMod = train(as.factor(expert_label) ~ ., data =  method2_train[,4:12], method="glm", family="binomial")
+logistic_testLoss2 = mean(predict(logistic_testMod, newdata = method2_test[,5:12]) != method2_test$expert_label)
 
 #total CV results
 CVresultsLogistic = data.frame(CVFold = c("Test", "Average Folds", 1:K),
@@ -623,14 +636,11 @@ ldaLossesMethod2 = getCVlda(method2_train, Method2MapIndices)
 lda_ptm = proc.time() - ptm
 
 #get lda Test loss (inaccuracy)
-test = test[(test$expert_label != 0), ]
-lda_testMod = lda(as.factor(expert_label) ~ ., data =  test[,4:12])
-lda_testLoss1 = mean(predict(lda_testMod)$class != test$expert_label)
+lda_testMod = lda(as.factor(expert_label) ~ ., data =  method1_train[,4:12])
+lda_testLoss1 = mean(predict(lda_testMod, newdata=method1_test[,5:12])$class != method1_test$expert_label)
 
-test = image1
-test = test[(test$expert_label != 0), ]
-lda_testMod = lda(as.factor(expert_label) ~ ., data =  test[,4:12])
-lda_testLoss2 = mean(predict(lda_testMod)$class != test$expert_label)
+lda_testMod = lda(as.factor(expert_label) ~ ., data =  method2_train[,4:12])
+lda_testLoss2 = mean(predict(lda_testMod, newdata=method2_test[,5:12])$class != method2_test$expert_label)
 
 #total CV results
 CVresultsLDA = data.frame(CVFold = c("Test","Average Folds", 1:K),
@@ -674,14 +684,11 @@ qdaLossesMethod2 = getCVqda(method2_train, Method2MapIndices)
 qda_ptm = proc.time() - ptm
 
 #get qda Test loss (inaccuracy)
-test = test[(test$expert_label != 0), ]
-qda_testMod = qda(as.factor(expert_label) ~ ., data =  test[,4:12])
-qda_testLoss1 = mean(predict(qda_testMod)$class != test$expert_label)
+qda_testMod = qda(as.factor(expert_label) ~ ., data =  method1_train[,4:12])
+qda_testLoss1 = mean(predict(qda_testMod, newdata = method1_test[,5:12])$class != method1_test$expert_label)
 
-test = image1
-test = test[(test$expert_label != 0), ]
-qda_testMod = qda(as.factor(expert_label) ~ ., data =  test[,4:12])
-qda_testLoss2 = mean(predict(qda_testMod)$class != test$expert_label)
+qda_testMod = qda(as.factor(expert_label) ~ ., data =  method2_train[,4:12])
+qda_testLoss2 = mean(predict(qda_testMod, newdata = method2_test[,5:12])$class != method2_test$expert_label)
 
 #total CV results
 CVresultsQDA = data.frame(CVFold = c("Test","Average Folds", 1:K),
@@ -724,15 +731,11 @@ svmLossesMethod2 = getCVsvm(method2_train, Method2MapIndices)
 svm_ptm = proc.time() - ptm
 
 #get svm Test loss (inaccuracy)
-test = test[(test$expert_label != 0), ]
-ptm <- proc.time()
-svm_testMod = svm(as.factor(expert_label) ~ ., data =  test[,4:12])
-svm_testLoss1 = mean(predict(svm_testMod) != test$expert_label)
-svm_ptm = proc.time() - ptm
-test = image1
-test = test[(test$expert_label != 0), ]
-svm_testMod = svm(as.factor(expert_label) ~ ., data =  test[,4:12])
-svm_testLoss2 = mean(predict(svm_testMod)$class != test$expert_label)
+svm_testMod = svm(as.factor(expert_label) ~ ., data =  method1_train[,4:12])
+svm_testLoss1 = mean(predict(svm_testMod, newdata = method1_test[,5:12]) != method1_test$expert_label)
+
+svm_testMod = svm(as.factor(expert_label) ~ ., data =  method2_train[,4:12])
+svm_testLoss2 = mean(predict(svm_testMod, newdata = method2_test[,5:12])$class != method2_test$expert_label)
 
 #total CV results
 CVresultsSVM = data.frame(CVFold = c("Test","Average Folds", 1:K),
@@ -741,10 +744,15 @@ CVresultsSVM = data.frame(CVFold = c("Test","Average Folds", 1:K),
 names(CVresultsSVM) = c("Data/CV Fold", "SVM Method 1", "SVM Method 2")
 write.csv(CVresultsSVM, "CVresults/CVsvm.csv", row.names = FALSE)
 
-
+## ----------------------------------------------------------------------------
+## CV results
+## ----------------------------------------------------------------------------
 #Display the results so far
-cbind(CVresultsLogistic, CVresultsLDA[,c(2,3)], CVresultsQDA[,c(2,3)], CVresultsSVM[,c(2,3)])
+CVresults = cbind(CVresultsLogistic, CVresultsLDA[,c(2,3)], CVresultsQDA[,c(2,3)], CVresultsSVM[,c(2,3)])
+write.csv(CVresults, "CVresults/CVresults.csv")
 
+
+#tried to use GPU here (could not download/install the package)
 library(rpud)
 rpusvm(test[,5:12], as.factor(test$expert_label), type="eps-regression", scale=TRUE)
 
