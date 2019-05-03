@@ -23,6 +23,7 @@ method2_test = read.csv("data/image1.csv")
 method2_test = method2_test[(method2_test$expert_label != 0), ]
 
 
+
 getFPRandTPR <- function(yprob, y, cutoffs) {
   #returns a dataframe with the cutoffs, False Positive, True Positive
   # consider 1 as Positive, -1 as Negative
@@ -106,8 +107,8 @@ ROC_qda2 = ggplot(qda_ROC_2, aes(x = FPR, y = TPR)) + geom_line()+
 #NOTE: SVM doesn't give probabilities, but we set the Cost value to different values and determine the
 #      resulting model's TPR and FPR. In addition, SVM takes a long time, so we train on the reduced
 #      data set where an original 10x10 pixel square creates a new data unit
-## Make the data smaller
-## ----------------------------------------------------------------------------
+## 
+## -------------------------Make the data smaller---------------------------------------------------
 method1_train = read.csv("data/train.csv")
 method1_train = method1_train[(method1_train$expert_label) != 0, ]
 method1_val = read.csv("data/validation.csv")
@@ -151,27 +152,19 @@ method2_small_train = method2 %>% group_by(imageNum, x10, y10) %>%
             RadianceAngleAN = mean(RadianceAngleAN))
 method2_small_train = data.frame(method2_small_train)
 
-## Create ROC curve
-## ----------------------------------------------------------------------------
-
-costs = seq(0, 3, .5)
-svm_ROC_1 = c() 
-svm_ROC_2 = c()
-for(c in costs) {
-  svm_mod1 = svm(as.factor(expert_label) ~ ., data =  method1_small_train[,4:12], probability=TRUE)
-}
-#svm_mod1 = svm(as.factor(expert_label) ~ ., data =  method1_train[,4:12])
-svm_mod1_classified = as.integer(predict(svm_mod1, newdata = method1_test[,5:12]) == 1)
-svm_mod1_predicted = (exp(svm_mod1_classified))/(1+exp(svm_mod1_classified))
+## -----------------------CREATE ROC CURVE-----------------------------------------------------
+svm_mod1 = svm(as.factor(expert_label) ~ ., data =  method1_small_train[,4:12], probability=TRUE)
+svm_mod1_predictObject = predict(svm_mod1, newdata = method1_test[,5:12], probability=TRUE)
+svm_mod1_predicted = attributes(svm_mod1_predictObject)[["probabilities"]][,"1"]
 svm_ROC_1 = getFPRandTPR(svm_mod1_predicted, method1_test$expert_label, cutoffs)
 index_min = which.min(getDistCorner(svm_ROC_1))
 ROC_svm1 = ggplot(svm_ROC_1, aes(x = FPR, y = TPR)) + geom_line()+
   annotate("point", x = svm_ROC_1$FPR[index_min], y = svm_ROC_1$TPR[index_min], colour = "blue") +
   labs(title=paste0("ROC: SVM (Method 1) / Best Cutoff:",svm_ROC_1$cutoff[index_min])) 
 
-#svm_mod2 = svm(as.factor(expert_label) ~ ., data =  method2_train[,4:12])
-svm_mod2_classified = as.integer(predict(svm_mod2, newdata = method2_test[,5:12]) == 1)
-svm_mod2_predicted = (exp(svm_mod2_classified))/(1+exp(svm_mod2_classified))
+svm_mod2 = svm(as.factor(expert_label) ~ ., data =  method2_small_train[,4:12], probability=TRUE)
+svm_mod2_predictObject = predict(svm_mod2, newdata = method2_test[,5:12], probability=TRUE)
+svm_mod2_predicted = attributes(svm_mod2_predictObject)[["probabilities"]][,"1"]
 svm_ROC_2 = getFPRandTPR(svm_mod2_predicted, method2_test$expert_label, cutoffs)
 index_min = which.min(getDistCorner(svm_ROC_2))
 ROC_svm2 = ggplot(svm_ROC_2, aes(x = FPR, y = TPR)) + geom_line()+
@@ -179,6 +172,7 @@ ROC_svm2 = ggplot(svm_ROC_2, aes(x = FPR, y = TPR)) + geom_line()+
   labs(title=paste0("ROC: SVM (Method 2) / Best Cutoff:",svm_ROC_2$cutoff[index_min])) 
 
 
+#ROC_svm2 + geom_label(aes(x = svm_ROC_2$FPR[index_min], y = svm_ROC_2$TPR[index_min], label="asdf"), position = "bottom-right")
 
 
 png(filename = "imgs/Q3b_ROC.png", width = 1920, height = 1080)

@@ -751,8 +751,8 @@ method2_small_train = method2 %>% group_by(imageNum, x10, y10) %>%
             RadianceAngleAN = mean(RadianceAngleAN))
 method2_small_train = data.frame(method2_small_train)
 
-svm_testMod = svm(as.factor(expert_label) ~ ., data =  method1_small_train[,4:12], cost = .001)
-svm_testLoss1 = mean(predict(svm_testMod, newdata = method1_test[,5:12]) != method1_test$expert_label)
+#svm_testMod = svm(as.factor(expert_label) ~ ., data =  method1_small_train[,4:12], cost = .001)
+#svm_testLoss1 = mean(predict(svm_testMod, newdata = method1_test[,5:12]) != method1_test$expert_label)
 
 ## SVM CV with K=10
 if(TRUE) {
