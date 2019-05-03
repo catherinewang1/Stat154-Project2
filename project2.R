@@ -842,7 +842,7 @@ write.csv(CVresultsSVM, "CVresults/CVsvm.csv", row.names = FALSE)
 ## ----------------------------------------------------------------------------
 ## CV results
 ## ----------------------------------------------------------------------------
-#Display the results so far
+#The CV results
 CVresultsInaccuracy = cbind(CVresultsLogistic, CVresultsLDA[,c(2,3)], CVresultsQDA[,c(2,3)], CVresultsSVM[,c(2,3)])
 write.csv(CVresultsInaccuracy, "CVresults/CVresultsInaccuracy.csv")
 
@@ -852,3 +852,81 @@ write.csv(CVresultsAccuracy, "CVresults/CVresultsAccuracy.csv")
 png("imgs/Fig3a1.png", height=450, width=1000)
 grid.table(CVresultsAccuracy)
 dev.off()
+
+
+## Question 3 a (Analysis of SVM Runtime)
+## ----------------------------------------------------------------------------
+image = read.csv("data/image_all.csv")
+image = image[(image$expert_label != 0), ]
+rownames(image) = 1:nrow(image)
+
+basicDat = image[c(1, 12),]
+
+
+sizes = c(10, 50, 100, 150, seq(200, 2000, 100), seq(2500, 5000, 500), seq(6000, 20000, 1000))
+times = c()
+for(i in 1:length(sizes)) {
+  set.seed(154)
+  dat = rbind(basicDat, image[(sample(1:sizes[i])),])
+  dattest = rbind(basicDat, image[(sample(1:sizes[i])),])
+  
+  ptm <- proc.time()
+  svmModel = svm(as.factor(expert_label) ~ ., data =  dat[,4:12], probability=TRUE)
+  svmPredicted = predict(svmModel, newdata = dattest, probability = TRUE)
+  svm_ptm = proc.time() - ptm
+  times = c(times, unname(svm_ptm["elapsed"]))
+}
+SVM_RuntimeDat = data.frame(sizes = sizes, times = times)
+SVM_RuntimeDat
+
+png("imgs/Q3a_SVMRuntime.png", height=500, width=500)
+ggplot(SVM_RuntimeDat, aes(x = sizes, y = times)) + geom_line() + 
+  labs(title="Run Time (seconds) of SVM by size of Training and Testing Dataset", 
+       x = "Size of Test and Train Datset (#rows)",
+       y = "Run Time of SVM (seconds)")
+dev.off()
+
+## ----------------------------------------------------------------------------
+## Question 3 b (Checking Assumptions)
+## ----------------------------------------------------------------------------
+image = read.csv("data/image_all.csv")
+image$expert_label = as.factor(image$expert_label)
+
+set.seed(154)
+dat = image
+datsample = image[(sample(1:nrow(image), 200)), ]
+
+
+#based on variance checking plotting at http://thatdatatho.com/2018/02/19/assumption-checking-lda-vs-qda-r-tutorial-2/
+#Check constant variance
+plot = list()
+box_variables <- c("NDAI", "SD", "CORR", "RadianceAngleDF", "RadianceAngleCF", "RadianceAngleBF", "RadianceAngleAF", "RadianceAngleAN")
+for(i in box_variables) {
+  plot[[i]] <- ggplot(dat, aes_string(x = "expert_label", y = i, col = "expert_label", fill = "expert_label")) + 
+    geom_boxplot(alpha = 0.2) + 
+    theme(legend.position = "none") + 
+    #scale_color_manual(values = c("blue", "red", "green")) 
+    scale_fill_manual(values = c( "red", "green", "blue"))
+}
+png("imgs/Q3_checkConstantVar.png", height = 1080, width = 1920)
+do.call(grid.arrange, c(plot, nrow = 1))
+dev.off()
+#check normality
+#For cloudy data
+png("imgs/Q3a1.png", width = 1080, height = 1080)
+par(mfrow = c(4, 4))
+for(i in box_variables) {
+  par(mar=c(5,3,2,2)+0.1)
+  qqnorm(datsample[(datsample$expert_label == 1),i], main = paste0("Cloudy QQnorm:", i))
+  qqline(datsample[(datsample$expert_label == 1),i], col = 2)
+}
+#For non cloudy data
+for(i in box_variables) {
+  qqnorm(datsample[(datsample$expert_label == -1),i], main = paste0("NonCloudy QQnorm:", i))
+  qqline(datsample[(datsample$expert_label == -1),i], col = 2)
+}
+dev.off()
+
+
+
+
