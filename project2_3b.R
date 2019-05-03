@@ -8,6 +8,8 @@ library(MASS)
 library(pROC)
 library(e1071)
 library(bmrm)
+library(car)
+
 
 method1_train = read.csv("data/train.csv")
 method1_train = method1_train[(method1_train$expert_label) != 0, ]
@@ -129,7 +131,7 @@ method1_test = method1_test[(method1_test$expert_label) != 0, ]
 method2_train = rbind(read.csv("data/train2.csv"), read.csv("data/train3.csv"))
 method2_train = method2_train[(method2_train$expert_label != 0), ]
 method2_val = rbind(read.csv("data/validation2.csv"), read.csv("data/validation3.csv"))
-metho2_val = method2_val[(method2_val$expert_label != 0), ]
+method2_val = method2_val[(method2_val$expert_label != 0), ]
 method2_test = read.csv("data/image1.csv")
 method2_test = method2_test[(method2_test$expert_label != 0), ]
 
@@ -195,6 +197,30 @@ dev.off()
 grid.arrange(ROC_log1, ROC_log2, 
              ROC_lda1, ROC_lda2, 
              ROC_qda1, ROC_qda2, nrow = 2)
+
+
+## KNN
+## ----------------------------------------------------------------------------
+knn_mod1 = knn(as.factor(expert_label) ~ ., data =  method1_train[,4:12])
+knn_mod1_dist = knn.dist(method1_train[,5:12], dist.meth = "euclidean", p = 2)
+knn(dat[, 5:12], dattest[, 5:12], dat$expert_label, 4)
+knn_mod1_predicted = predict(knn_mod1, type = "prob", newdata = method1_test[,5:12])$posterior
+knn_ROC_1 = getFPRandTPR(knn_mod1_predicted[,"1"], method1_test$expert_label, cutoffs)
+index_min = which.min(getDistCorner(knn_ROC_1))
+knn_predicted1 = as.integer(knn_mod1_predicted > cutoffs[index_min])*2-1
+ROC_knn1 = ggplot(knn_ROC_1, aes(x = FPR, y = TPR)) + geom_line()+
+  annotate("point", x = knn_ROC_1$FPR[index_min], y = knn_ROC_1$TPR[index_min], colour = "blue") +
+  labs(title=paste0("ROC: knn (Method 1) / Best Cutoff:",knn_ROC_1$cutoff[index_min])) 
+
+knn_mod2 = knn(as.factor(expert_label) ~ ., data =  method2_train[,4:12])
+knn_mod2_predicted = predict(knn_mod2, type = "prob", newdata = method2_test[,5:12])$posterior
+knn_ROC_2 = getFPRandTPR(knn_mod2_predicted[,"1"], method2_test$expert_label, cutoffs)
+index_min = which.min(getDistCorner(knn_ROC_2))
+knn_predicted2 = as.integer(knn_mod2_predicted > cutoffs[index_min])*2-1
+ROC_knn2 = ggplot(knn_ROC_2, aes(x = FPR, y = TPR)) + geom_line()+
+  annotate("point", x = knn_ROC_2$FPR[index_min], y = knn_ROC_2$TPR[index_min], colour = "blue") +
+  labs(title=paste0("ROC: knn (Method 2) / Best Cutoff:",knn_ROC_2$cutoff[index_min]))
+
 
 
 # Other Loss Functions
