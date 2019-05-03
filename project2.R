@@ -459,11 +459,10 @@ CVgeneric(generic_classifier, training_features, training_labels, K, lossFunctio
 ## ----------------------------------------------------------------------------
 ## Some optimization
 ## ----------------------------------------------------------------------------
-## CV generic takes a lot of time to run, most of it is from splitting the data 
-# into squares, to speed up computation, we save the list of squares from both
-# METHOD 1 and METHOD 2 into intermediate MapIndices objects
+## CV generic takes a lot of time to run, some of it is from splitting the data 
+#  into squares. To speed up computation, we save the list of squares from both
+#  METHOD 1 and METHOD 2 into intermediate MapIndices objects
 if(TRUE) {
-  
   method1_train = read.csv("data/train.csv")
   method1_train = method1_train[(method1_train$expert_label) != 0, ]
   method1_val = read.csv("data/validation.csv")
@@ -477,15 +476,17 @@ if(TRUE) {
   metho2_val = method2_val[(method2_val$expert_label != 0), ]
   method2_test = read.csv("data/image1.csv")
   method2_test = method2_test[(method2_test$expert_label != 0), ]
+  
+  
   # METHOD 1: Get Method1MapIndices (to speed computation)
   #divide the data into squares by METHOD 1
   train = read.csv("data/train.csv")
   validation = read.csv("data/validation.csv")
   test = read.csv("data/test.csv")
-  method1_train = rbind(train, validation)
+  method1_train = rbind(method1_train, method1_val)
   rownames(method1_train) = NULL
   dat = method1_train
-  dat = train[(train$expert_label != 0), ]
+  dat = method1_train[(method1_train$expert_label != 0), ]
   
   dat$x10 = floor(dat$x / 40)* 40
   dat$y10 = floor(dat$y / 40)* 40
@@ -506,9 +507,7 @@ if(TRUE) {
   
   # METHOD 2: Get Method2MapIndices (to speed computation)
   #divide the data into squares by METHOD 2
-  image2 = read.csv("data/image2.csv")
-  image3 = read.csv("data/image3.csv")
-  method2_train = rbind(image2, image3)
+  method2_train = rbind(method2_train, method2_val)
   rownames(method2_train) = NULL
   dat = method2_train
   dat = method2_train[(method2_train$expert_label != 0), ]
@@ -527,6 +526,10 @@ if(TRUE) {
     mapIndices[[i]] <- indices
   }
   Method2MapIndices = mapIndices
+
+  
+  rownames(method1_train) = NULL
+  rownames(method2_train) = NULL
 }
   
 
@@ -604,6 +607,7 @@ names(CVresultsLogistic) = c("Data/CV Fold", "Logistic (Cutoff .5) Method 1", "L
 write.csv(CVresultsLogistic, "CVresults/CVLogistic.csv", row.names = FALSE)
 
 
+
 ## ----------------------------------------------------------------------------
 ## LDA
 ## ----------------------------------------------------------------------------
@@ -648,6 +652,7 @@ CVresultsLDA = data.frame(CVFold = c("Test","Average Folds", 1:K),
                           lda2 = c(lda_testLoss2, mean(ldaLossesMethod2), ldaLossesMethod2))
 names(CVresultsLDA) = c("Data/CV Fold", "LDA Method 1", "LDA Method 2")
 write.csv(CVresultsLDA, "CVresults/CVlda.csv", row.names = FALSE)
+
 
 
 
@@ -699,12 +704,100 @@ write.csv(CVresultsQDA, "CVresults/CVqda.csv", row.names = FALSE)
 
 
 
+
 ## ----------------------------------------------------------------------------
 ## SVM
 ## ----------------------------------------------------------------------------
+method1_train = read.csv("data/train.csv")
+method1_train = method1_train[(method1_train$expert_label) != 0, ]
+method1_val = read.csv("data/validation.csv")
+method1_val = method1_val[(method1_val$expert_label) != 0, ]
+method1_test = read.csv("data/test.csv")
+method1_test = method1_test[(method1_test$expert_label) != 0, ]
+
+method2_train = rbind(read.csv("data/train2.csv"), read.csv("data/train3.csv"))
+method2_train = method2_train[(method2_train$expert_label != 0), ]
+method2_val = rbind(read.csv("data/validation2.csv"), read.csv("data/validation3.csv"))
+metho2_val = method2_val[(method2_val$expert_label != 0), ]
+method2_test = read.csv("data/image1.csv")
+method2_test = method2_test[(method2_test$expert_label != 0), ]
+
+#get mode function from: https://www.tutorialspoint.com/r/r_mean_median_mode.htm
+getmode <- function(v) {
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+## Make the data smaller
+method1 = rbind(method1_train, method1_val)
+method1$x10 = floor(method1$x / 10) * 10
+method1$y10 = floor(method1$y / 10) * 10
+
+method1_small_train = method1 %>% group_by(imageNum, x10, y10) %>%
+  summarise(expert_label = getmode(expert_label), NDAI = mean(NDAI), SD = mean(SD), CORR = mean(CORR),
+            RadianceAngleDF = mean(RadianceAngleDF), RadianceAngleCF = mean(RadianceAngleCF),
+            RadianceAngleBF = mean(RadianceAngleBF), RadianceAngleAF = mean(RadianceAngleAF),
+            RadianceAngleAN = mean(RadianceAngleAN))
+method1_small_train = data.frame(method1_small_train)
+
+method2 = rbind(method2_train, method2_val)
+method2$x10 = floor(method2$x / 10) * 10
+method2$y10 = floor(method2$y / 10) * 10
+
+method2_small_train = method2 %>% group_by(imageNum, x10, y10) %>%
+  summarise(expert_label = getmode(expert_label), NDAI = mean(NDAI), SD = mean(SD), CORR = mean(CORR),
+            RadianceAngleDF = mean(RadianceAngleDF), RadianceAngleCF = mean(RadianceAngleCF),
+            RadianceAngleBF = mean(RadianceAngleBF), RadianceAngleAF = mean(RadianceAngleAF),
+            RadianceAngleAN = mean(RadianceAngleAN))
+method2_small_train = data.frame(method2_small_train)
+
+svm_testMod = svm(as.factor(expert_label) ~ ., data =  method1_small_train[,4:12], cost = .001)
+svm_testLoss1 = mean(predict(svm_testMod, newdata = method1_test[,5:12]) != method1_test$expert_label)
+
+## SVM CV with K=10
+if(TRUE) {
+  dat = method1_small_train
+  dat = dat[(dat$expert_label != 0), ]
+  
+  dat$x10 = floor(dat$x10 / 40)* 40
+  dat$y10 = floor(dat$y10 / 40)* 40
+  d = dat %>% group_by(imageNum, x10, y10) %>% summarise(count = n())
+  mapIndices <- vector("list", nrow(d))
+  z = vector("list", nrow(d))
+  for(i in 1:nrow(d)) {
+    imageNumval = d$imageNum[i]
+    xval = d$x10[i]
+    yval = d$y10[i]
+    key = paste0(xval,",", yval)
+    indices = which(dat$imageNum == imageNumval & dat$x10 == xval & dat$y10 == yval)
+    mapIndices[[i]] <- indices
+  }
+  Method1MapIndices = mapIndices
+  
+  # METHOD 2: Get Method2MapIndices (to speed computation)
+  #divide the data into squares by METHOD 2
+  dat = method2_small_train
+  dat = dat[(dat$expert_label != 0), ]
+  
+  dat$x10 = floor(dat$x / 40)* 40
+  dat$y10 = floor(dat$y / 40)* 40
+  d = dat %>% group_by(imageNum, x10, y10) %>% summarise(count = n())
+  mapIndices <- vector("list", nrow(d))
+  z = vector("list", nrow(d))
+  for(i in 1:nrow(d)) {
+    imageNumval = d$imageNum[i]
+    xval = d$x10[i]
+    yval = d$y10[i]
+    key = paste0(xval,",", yval)
+    indices = which(dat$imageNum == imageNumval & dat$x10 == xval & dat$y10 == yval)
+    mapIndices[[i]] <- indices
+  }
+  Method2MapIndices = mapIndices
+}
+
 generic_svm <- function(X, y) {
   total_dat = cbind(X, y)
-  return(svm(y ~ ., data = dat, kernel = "linear", cost = 10, scale = FALSE))
+  return(svm(y ~ ., data = total_dat, kernel = "linear", cost = 1, scale = FALSE))
 }
 loss_svm <- function(yhat, y) {
   if("class" %in% names(yhat)) {
@@ -726,16 +819,16 @@ getCVsvm <- function(dataInput, mapIndices) {
 }
 #get svm CV Folds losses (inaccuracy)
 ptm <- proc.time()
-svmLossesMethod1 = getCVsvm(method1_train, Method1MapIndices)
-svmLossesMethod2 = getCVsvm(method2_train, Method2MapIndices)
+svmLossesMethod1 = getCVsvm(method1_small_train, Method1MapIndices)
+svmLossesMethod2 = getCVsvm(method2_small_train, Method2MapIndices)
 svm_ptm = proc.time() - ptm
 
 #get svm Test loss (inaccuracy)
-svm_testMod = svm(as.factor(expert_label) ~ ., data =  method1_train[,4:12])
+svm_testMod = svm(as.factor(expert_label) ~ ., data =  method1_small_train[,4:12])
 svm_testLoss1 = mean(predict(svm_testMod, newdata = method1_test[,5:12]) != method1_test$expert_label)
 
-svm_testMod = svm(as.factor(expert_label) ~ ., data =  method2_train[,4:12])
-svm_testLoss2 = mean(predict(svm_testMod, newdata = method2_test[,5:12])$class != method2_test$expert_label)
+svm_testMod = svm(as.factor(expert_label) ~ ., data =  method2_small_train[,4:12])
+svm_testLoss2 = mean(predict(svm_testMod, newdata = method2_test[,5:12]) != method2_test$expert_label)
 
 #total CV results
 CVresultsSVM = data.frame(CVFold = c("Test","Average Folds", 1:K),
@@ -744,15 +837,18 @@ CVresultsSVM = data.frame(CVFold = c("Test","Average Folds", 1:K),
 names(CVresultsSVM) = c("Data/CV Fold", "SVM Method 1", "SVM Method 2")
 write.csv(CVresultsSVM, "CVresults/CVsvm.csv", row.names = FALSE)
 
+
+
 ## ----------------------------------------------------------------------------
 ## CV results
 ## ----------------------------------------------------------------------------
 #Display the results so far
-CVresults = cbind(CVresultsLogistic, CVresultsLDA[,c(2,3)], CVresultsQDA[,c(2,3)], CVresultsSVM[,c(2,3)])
-write.csv(CVresults, "CVresults/CVresults.csv")
+CVresultsInaccuracy = cbind(CVresultsLogistic, CVresultsLDA[,c(2,3)], CVresultsQDA[,c(2,3)], CVresultsSVM[,c(2,3)])
+write.csv(CVresultsInaccuracy, "CVresults/CVresultsInaccuracy.csv")
 
+CVresultsAccuracy = cbind("Data/CV Fold" = CVresultsLogistic[,1] ,1-CVresultsLogistic[,c(2,3)], 1-CVresultsLDA[,c(2,3)], 1-CVresultsQDA[,c(2,3)], 1-CVresultsSVM[,c(2,3)])
+write.csv(CVresultsAccuracy, "CVresults/CVresultsAccuracy.csv")
 
-#tried to use GPU here (could not download/install the package)
-library(rpud)
-rpusvm(test[,5:12], as.factor(test$expert_label), type="eps-regression", scale=TRUE)
-
+png("imgs/Fig3a1.png", height=450, width=1000)
+grid.table(CVresultsAccuracy)
+dev.off()
