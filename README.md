@@ -13,7 +13,8 @@ The Final Report pdf is the final submission for this project. (This pdf was gen
 ## Reproducibility:
 To reproduce all the figures, graphs, tables, and results from the final report, run through the R code in the `project2_123a.R`, `project2_3b.R`, `project2_4.R` file in order. (Also make sure that you all the raw image data in a folder `image_data/` that can be found from either this repository or from MISR. Make sure you have installed the required libraries such as `ggplot2`, `dplyr`, `gridExtra`, `GGally`, `caret`, `MASS`, `e1071` etc.)
 
-
++ note: the code for the function `CVgeneric` is in `CVgeneric.R` located in the main directory, as well as the main .R scripts `project2_123a.R`, `project2_3b.R`, `project2_4.R`
++ note: the folders `CVresults`, `code`, `data`, `imgs` contain saved intermediary objects. `image_data` contains the raw image data. `project2.pdf` is the assignment instructions
 + note: in the script, it saves the images in between in the `imgs` folder, however these may result in lower quality (resolution) images than the actual final report contains. To get the higher quality images, run the code and zoom in in RStudio. 
 + note: word compresses the images when converting to pdf, so to view a better resolution, look at the word document, look in the `imgs/` folder, or run in R. 
 + note: splitting the data into training and testing takes a while to run. To quicken the process, this data has been saved in `data/*.csv`. In R, simply load the data by `read.csv("data/*.csv")`. To read in the data easily, follow the code shown below:
