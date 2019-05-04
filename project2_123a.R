@@ -826,7 +826,7 @@ if(TRUE) {
 
 generic_svm <- function(X, y) {
   total_dat = cbind(X, y)
-  return(svm(y ~ ., data = total_dat, kernel = "linear", cost = 21.4, scale = FALSE))
+  return(svm(y ~ ., data = total_dat, kernel = "linear", cost = .01, scale = TRUE))
 }
 loss_svm <- function(yhat, y) {
   if("class" %in% names(yhat)) {
@@ -853,10 +853,10 @@ svmLossesMethod2 = getCVsvm(method2_small_train, Method2MapIndices)
 svm_ptm = proc.time() - ptm
 
 #get svm Test loss (inaccuracy)
-svm_testMod = svm(as.factor(expert_label) ~ ., data =  method1_small_train[,4:12], cost=21.4)
+svm_testMod = svm(as.factor(expert_label) ~ ., data =  method1_small_train[,4:12], cost=.01)
 svm_testLoss1 = mean(predict(svm_testMod, newdata = method1_test[,5:12]) != method1_test$expert_label)
 
-svm_testMod = svm(as.factor(expert_label) ~ ., data =  method2_small_train[,4:12], cost=21.4)
+svm_testMod = svm(as.factor(expert_label) ~ ., data =  method2_small_train[,4:12], cost=.01)
 svm_testLoss2 = mean(predict(svm_testMod, newdata = method2_test[,5:12]) != method2_test$expert_label)
 
 #total CV results
