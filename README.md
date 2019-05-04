@@ -4,6 +4,8 @@ Repo for Spring 2019 Stat 154 Project 2
 + Catherine Wang- catherine_wang at berkeley.edu
 + Yijin Wang
 
+![Cloud Image Map](imgs/Fig1b2.png)
+
 ## Final Report: 
 
 The Final Report pdf is the final submission for this project. (This pdf was generated on google docs, and the corresponding word file is also included for reproducibility.)

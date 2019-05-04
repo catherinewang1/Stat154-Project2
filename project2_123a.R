@@ -84,7 +84,7 @@ q1b_legendplot <- ggplot(image1, aes(x=x, y=y)) + geom_point(aes(colour=factor(e
   theme(legend.title=element_text(size=40), legend.text=element_text(size=40))
 set.seed(154)
 dat_temp = image1[sample(1:nrow(image1), 1000), ]
-q1b_legendplot <- ggplot(dat_temp, aes(x=x, y=y)) + geom_tile(aes(fill=factor(expert_label)), color=colors_cloud[dat$expert_label + 2]) +
+q1b_legendplot <- ggplot(dat_temp, aes(x=x, y=y)) + geom_tile(aes(fill=factor(expert_label)), color=colors_cloud[dat_temp$expert_label + 2]) +
   scale_fill_manual(values=colors_cloud) + theme(legend.direction = "horizontal") + labs(fill = "Cloud Label") + 
   theme(legend.background = element_rect(fill = 'white', size = 3)) + 
   theme(legend.title=element_text(size=40), legend.text=element_text(size=40))
