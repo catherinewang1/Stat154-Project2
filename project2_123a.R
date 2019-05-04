@@ -853,10 +853,10 @@ svmLossesMethod2 = getCVsvm(method2_small_train, Method2MapIndices)
 svm_ptm = proc.time() - ptm
 
 #get svm Test loss (inaccuracy)
-svm_testMod = svm(as.factor(expert_label) ~ ., data =  method1_small_train[,4:12])
+svm_testMod = svm(as.factor(expert_label) ~ ., data =  method1_small_train[,4:12], cost=21.4)
 svm_testLoss1 = mean(predict(svm_testMod, newdata = method1_test[,5:12]) != method1_test$expert_label)
 
-svm_testMod = svm(as.factor(expert_label) ~ ., data =  method2_small_train[,4:12])
+svm_testMod = svm(as.factor(expert_label) ~ ., data =  method2_small_train[,4:12], cost=21.4)
 svm_testLoss2 = mean(predict(svm_testMod, newdata = method2_test[,5:12]) != method2_test$expert_label)
 
 #total CV results
@@ -870,7 +870,7 @@ write.csv(CVresultsSVM, "CVresults/CVsvm.csv", row.names = FALSE)
 ## KNN
 ## ----------------------------------------------------------------------------
 # done in another file
-load(backup.R)
+source("./code/KNN-CV.R")
 
 CVresultsKNN = read.csv("CVresults/CVknn.csv")
 
