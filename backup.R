@@ -47,7 +47,8 @@ getCVhyperparam <- function(generic_classifier, dataInput, mapIndices, hyperpara
 }
 summarizeData <- function(dat, hyperparameters, hyperparamName, K) {
   hyperparamerror = dat %>% apply(2, mean)
-  list(bestparamcverror = dat, meanerror = hyperparamerror, besthyperparam = hyperparameters[which.max(hyperparamerror)])
+  indexminerror = which.min(hyperparamerror)
+  list(bestparamcverror = dat[,indexminerror], meanerror = hyperparamerror, besthyperparam = hyperparameters[indexminerror])
 }
 #-------------------------------------
 
@@ -58,9 +59,7 @@ summarizeData <- function(dat, hyperparameters, hyperparamName, K) {
 #----------------------------------------------------------------------------
 
 
-## ----------------------------------------------------------------------------
-## Some optimization
-## ----------------------------------------------------------------------------
+
 ## CV generic takes a lot of time to run, most of it is from splitting the data 
 # into squares, to speed up computation, we save the list of squares from both
 # METHOD 1 and METHOD 2 into intermediate MapIndices objects
@@ -154,44 +153,6 @@ if (TRUE) {
 }
 K = 10
 
-#SVM ---------------------------------------------------------------------------
-generic_svm <- function(X, y, C) {
-  data = cbind(X,y)
-  svm(y ~ ., data = data, kernel = "linear", cost = C, scale = FALSE)
-}
-loss_svm <- function(yhat, y) {
-  if("class" %in% names(yhat)) {
-    return(mean(yhat$class != y)) 
-  } else {
-    return(mean(yhat != y))
-  }
-}
-#function to get CV for qda classification
-getCVsvm <- function(dataInput, mapIndices) {
-  dat = dataInput[(dataInput$expert_label != 0), ]
-  rownames(dat) = NULL
-  
-  training_features = dat[,5:12]
-  training_labels = as.factor(dat$expert_label)
-  
-  CVgeneric_Optimized(generic_svm, training_features, training_labels, K, loss_svm, 
-                      mapIndices)
-}
-#get svm CV Folds losses (inaccuracy)
-ptm <- proc.time()
-svmLossesMethod1 = getCVsvm(method1_train, Method1MapIndices)
-svmLossesMethod2 = getCVsvm(method2_train, Method2MapIndices)
-svm_ptm = proc.time() - ptm
-
-#get svm Test loss (inaccuracy)
-svm_testMod = svm(as.factor(expert_label) ~ ., data =  method1_train[,4:12])
-svm_testLoss1 = mean(predict(svm_testMod, newdata = method1_test[,5:12]) != method1_test$expert_label)
-
-svm_testMod = svm(as.factor(expert_label) ~ ., data =  method2_train[,4:12])
-svm_testLoss2 = mean(predict(svm_testMod, newdata = method2_test[,5:12])$class != method2_test$expert_label)
-## ----------------------------------------------------------------------------
-
-
 
 # KNN-------------------------------------------------
 generic_knn <- function(trainx, testx, trainy, k) {
@@ -201,7 +162,7 @@ k = 1:10
 #get knn CV Folds losses (inaccuracy)
 ptm <- proc.time()
 cvKknn1 = getCVhyperparam(generic_knn, method1_small_train, Method1MapIndices, k, TRUE) #K x k
-cvKknn2 = getCVhyperparam(generic_knn, method2_small_train, Method1MapIndices, k, TRUE) #K x k
+cvKknn2 = getCVhyperparam(generic_knn, method2_small_train, Method2MapIndices, k, TRUE) #K x k
 knn_ptm = proc.time() - ptm
 
 summaryknn1 = summarizeData(cvKknn1, k, "K", K)
@@ -220,28 +181,8 @@ knn_testLoss2 = loss1(knn_testPred2, method2_test$expert_label)
 
 #total CV results
 CVresultsknn = data.frame(CVFold = c("Test","Average Folds", 1:K),
-                          knn1 = c(knn_testLoss1, mean(summaryknn1$bestparamcverror), summaryknn1$bestparamcverror)),
-                          knn2 = c(knn_testLoss2, mean(summaryknn2$bestparamcverror), summaryknn2$bestparamcverror)))
+                          knn1 = c(knn_testLoss1, mean(summaryknn1$bestparamcverror), summaryknn1$bestparamcverror),
+                          knn2 = c(knn_testLoss2, mean(summaryknn2$bestparamcverror), summaryknn2$bestparamcverror))
 names(CVresultsknn) = c("Data/CV Fold", "knn Method 1", "knn Method 2")
-write.csv(CVresultsMethod, "CVresults/CVknn.csv", row.names = FALSE)
-# -------------------------------------------------
-
-
-# 4a-----------------------------------------------
-C = seq(0.01, 100, length.out = 10)
-cvcostsvm = getCVhyperparam(generic_svm, method1_small_train, Method1MapIndices, C)
-summarysvm = summarizeData(cvcostsvm, C, "C", K)
-svm_testMod = svm(factor(expert_label) ~ ., data = method1_small_train, kernel = "linear", cost = summarysvm$besthyperparam, scale = FALSE)
-labhat = predict(svm_testMod, newdata = method1_test[,5:12])
-svm_testAccuracy = mean(labhat == method1_test$expert_label)
-
-ggplot() + geom_line(aes(x = C, y = summarysvm$meanerror)) + labs(title = "CV Error Across Cost for SVM")
-# -------------------------------------------------
-# 4b-----------------------------------------------
-correct = labhat == method1_test$expert_label
-data.frame(correct, test[, 5:12]) %>%
-  gather(-correct, key = "Feature", value = "Value") %>%
-  ggplot(aes(x = Value, y = correct)) +
-  geom_point() +
-  facet_wrap(~ Feature, scales = "free")
+write.csv(CVresultsknn, "CVresults/CVknn.csv", row.names = FALSE)
 # -------------------------------------------------

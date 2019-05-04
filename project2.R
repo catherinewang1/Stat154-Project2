@@ -11,6 +11,8 @@ library(e1071)
 library(class)
 library(car)
 library(tidyr)
+library(ggpubr)
+library(WVPlots) 
 
 
 #read in the raw data
@@ -44,11 +46,11 @@ summary1 = image1 %>% group_by(expert_label) %>% summarise(Image1_count = n(), I
 summary2 = image2 %>% group_by(expert_label) %>% summarise(Image2_count = n(), Image2_prop = n() / nrow(image2))
 summary3 = image3 %>% group_by(expert_label) %>% summarise(Image3_count = n(), Image3_prop = n() / nrow(image3))
 summary_total = image_all %>% group_by(expert_label) %>% summarise(Total_count = n(), Total_prop = n() / nrow(image_all))
-summary_table = cbind(summary1, summary2[,c(2,3)], summary3[,c(2,3)], summary_total[c(2,3)])
+summary_table = cbind(summary1[,1], round(summary1[,c(2,3), 2], 2), round(summary2[,c(2,3)], 2), round(summary3[,c(2,3)], 2), round(summary_total[c(2,3)], 2))
 
 rownames(summary_table) = NULL #c("Not Cloud", "Unlabeled", "Cloud")
 rownames(summary_table) = c("Not Cloud", "Unlabeled", "Cloud")
-png(filename="imgs/Fig1b1.png", height=200, width=1100)
+pdf("imgs/Fig1b1.pdf",  width = 28, height = 18 )
 grid.table(summary_table)
 dev.off()
 
@@ -58,26 +60,35 @@ colors_cloud = c("skyblue4","black","ghostwhite")
 #plot image 1
 q1b_image1 <- ggplot(image1, aes(x = x, y = y)) + geom_raster(aes(fill=expert_label)) + 
   scale_fill_gradientn(colours=colors_cloud) + 
-  labs(title="Image 1: Cloud/Not Cloud in Coordinate Space", x = "x-Coord", y = "y-Coord") + 
+  labs(title="Image 1: Cloud Label in Coordinate Space", x = "x-Coord", y = "y-Coord") + 
   theme_classic()
 
 #plot image 2
 q1b_image2 <- ggplot(image2, aes(x = x, y = y)) + geom_raster(aes(fill=expert_label)) + 
   scale_fill_gradientn(colours=colors_cloud) + 
-  labs(title="Image 2: Cloud/Not Cloud in Coordinate Space", x = "x-Coord", y = "y-Coord") + 
+  labs(title="Image 2: Cloud Label in Coordinate Space", x = "x-Coord", y = "y-Coord") + 
   theme_classic()
 
 #plot image 3
 q1b_image3 <- ggplot(image3, aes(x = x, y = y)) + geom_raster(aes(fill=expert_label)) + 
   scale_fill_gradientn(colours=colors_cloud) + 
-  labs(title="Image 3: Cloud/Not Cloud in Coordinate Space", x = "x-Coord", y = "y-Coord") + 
+  labs(title="Image 3: Cloud Label in Coordinate Space", x = "x-Coord", y = "y-Coord") + 
   theme_classic()
 
 #get appropriate legend
-q1b_legendplot <- ggplot(image1, aes(x=x, y=y)) + geom_point(aes(colour=factor(expert_label))) +
+q1b_legendplot <- ggplot(image1, aes(x=x, y=y)) + geom_point(aes(colour=factor(expert_label), )) +
   scale_colour_manual(values = colors_cloud) + theme(legend.direction = "horizontal") +
   #scale_colour_discrete(name = "Cloud Label", labels = c("Not Cloud", "Unlabeled", "Cloud")) +
-  labs(colour = "Cloud Label")
+  labs(colour = "Cloud Label") + 
+  #theme(legend.key = element_rect( size = 2, linetype='dashed'))
+  theme(legend.title=element_text(size=40), legend.text=element_text(size=40))
+set.seed(154)
+dat_temp = image1[sample(1:nrow(image1), 1000), ]
+q1b_legendplot <- ggplot(dat_temp, aes(x=x, y=y)) + geom_tile(aes(fill=factor(expert_label)), color=colors_cloud[dat$expert_label + 2]) +
+  scale_fill_manual(values=colors_cloud) + theme(legend.direction = "horizontal") + labs(fill = "Cloud Label") + 
+  theme(legend.background = element_rect(fill = 'white', size = 3)) + 
+  theme(legend.title=element_text(size=40), legend.text=element_text(size=40))
+ 
 
 #extract legend: https://stackoverflow.com/questions/13649473/add-a-common-legend-for-combined-ggplots
 #https://github.com/hadley/ggplot2/wiki/Share-a-legend-between-two-ggplot2-graphs
@@ -90,13 +101,20 @@ g_legend<-function(a.gplot){
 
 mylegend<-g_legend(q1b_legendplot)
 
-png(filename="imgs/Fig1b2.png", width = 1920, height = 1080, units = "px", pointsize = 12)
-q1b_finalplot <- grid.arrange(arrangeGrob(q1b_image1 + theme(legend.position="none"),
-                               q1b_image2 + theme(legend.position="none"),
-                               q1b_image3 + theme(legend.position="none"),
+png(filename="imgs/Fig1b2.png", height=1080, width = 1920)
+q1b_finalplot <- grid.arrange(arrangeGrob(q1b_image1 + theme(legend.position="none", plot.title = element_text(size = 30, face = "bold")),
+                               q1b_image2 + theme(legend.position="none", plot.title = element_text(size = 30, face = "bold")),
+                               q1b_image3 + theme(legend.position="none", plot.title = element_text(size = 30, face = "bold")),
                                nrow=1),
                    mylegend, nrow=2,heights=c(10, 1))
+dev.off()
 
+pdf(filename="imgs/Fig1b2.pdf")
+grid.arrange(arrangeGrob(q1b_image1 + theme(legend.position="none") + theme(plot.title = element_text(size = 40, face = "bold")),
+                         q1b_image2 + theme(legend.position="none"),
+                         q1b_image3 + theme(legend.position="none"),
+                              nrow=1),
+                              mylegend, nrow=2,heights=c(10, 1))
 dev.off()
 
 #----------------------------------------------------------------------------
@@ -340,6 +358,7 @@ accuracy_table = data.frame(dataset = c("Validation", "Test", "Val&Test Combined
                                                  mean(test_labeled$expert_label == -1),
                                                  mean(temp_labeled$expert_label == -1)))
 colnames(accuracy_table) = c("dataset", "Prop Correct {-1,1}", "Prop Correct {-1, 0, 1}")
+pdf("imgs/Fig2b1.pdf")
 grid.table(accuracy_table)
 dev.off()
 
@@ -547,7 +566,7 @@ CVgeneric_Optimized <- function(generic_classifier, training_features, training_
   #for each fold, find the loss
   set.seed(154)
   losses = c()
-  folds = createFolds(1:nrow(d), k=K)
+  folds = createFolds(1:length(mapIndices), k=K)
   for(k in 1:K) {
     CVtrain = unlist(mapIndices[-folds[[k]]])
     CVvalid = unlist(mapIndices[folds[[k]]])
@@ -807,7 +826,7 @@ if(TRUE) {
 
 generic_svm <- function(X, y) {
   total_dat = cbind(X, y)
-  return(svm(y ~ ., data = total_dat, kernel = "linear", cost = 1, scale = FALSE))
+  return(svm(y ~ ., data = total_dat, kernel = "linear", cost = 21.4, scale = FALSE))
 }
 loss_svm <- function(yhat, y) {
   if("class" %in% names(yhat)) {
@@ -847,19 +866,27 @@ CVresultsSVM = data.frame(CVFold = c("Test","Average Folds", 1:K),
 names(CVresultsSVM) = c("Data/CV Fold", "SVM Method 1", "SVM Method 2")
 write.csv(CVresultsSVM, "CVresults/CVsvm.csv", row.names = FALSE)
 
+## ----------------------------------------------------------------------------
+## KNN
+## ----------------------------------------------------------------------------
+# done in another file
+load(backup.R)
 
+CVresultsKNN = read.csv("CVresults/CVknn.csv")
 
 ## ----------------------------------------------------------------------------
 ## CV results
 ## ----------------------------------------------------------------------------
 #The CV results
-CVresultsInaccuracy = cbind(CVresultsLogistic, CVresultsLDA[,c(2,3)], CVresultsQDA[,c(2,3)], CVresultsSVM[,c(2,3)])
+CVresultsInaccuracy = cbind(CVresultsLogistic, CVresultsLDA[,c(2,3)], CVresultsQDA[,c(2,3)], 
+                            CVresultsSVM[,c(2,3)], CVresultsKNN[,c(2,3)])
 write.csv(CVresultsInaccuracy, "CVresults/CVresultsInaccuracy.csv")
 
-CVresultsAccuracy = cbind("Data/CV Fold" = CVresultsLogistic[,1] ,1-CVresultsLogistic[,c(2,3)], 1-CVresultsLDA[,c(2,3)], 1-CVresultsQDA[,c(2,3)], 1-CVresultsSVM[,c(2,3)])
+CVresultsAccuracy = cbind("Data/CV Fold" = CVresultsLogistic[,1] ,1-CVresultsLogistic[,c(2,3)], 
+                          1-CVresultsLDA[,c(2,3)], 1-CVresultsQDA[,c(2,3)], 1-CVresultsSVM[,c(2,3)], 1-CVresultsKNN[,c(2,3)])
 write.csv(CVresultsAccuracy, "CVresults/CVresultsAccuracy.csv")
 
-png("imgs/Fig3a1.png", height=450, width=1000)
+png("imgs/Fig3a1.png", height=500, width=1300)
 grid.table(CVresultsAccuracy)
 dev.off()
 
@@ -944,20 +971,18 @@ for(i in box_variables) {
 png("imgs/Q3_checkConstantVar.png", height = 1080, width = 1920)
 do.call(grid.arrange, c(plot, nrow = 1))
 dev.off()
-#check normality
-#For cloudy data
-png("imgs/Q3a1.png", width = 1080, height = 1080)
-par(mfrow = c(4, 4))
-for(i in box_variables) {
-  par(mar=c(5,3,2,2)+0.1)
-  qqnorm(datsample[(datsample$expert_label == 1),i], main = paste0("Cloudy QQnorm:", i))
-  qqline(datsample[(datsample$expert_label == 1),i], col = 2)
+
+#Check Normality
+plot = list()
+box_variables <- c("NDAI", "SD", "CORR", "RadianceAngleDF", "RadianceAngleCF", "RadianceAngleBF", "RadianceAngleAF", "RadianceAngleAN")
+for(i in box_variables) {#For Cloudy
+  plot[[paste0(i, "cloudy")]] <- ggqqplot(datsample[(datsample$expert_label == 1), i]) + labs(title = paste0("Cloudy: ", i), ylab="Sample Quantiles", xlab="Theoretical Quantiles")
 }
-#For non cloudy data
-for(i in box_variables) {
-  qqnorm(datsample[(datsample$expert_label == -1),i], main = paste0("NonCloudy QQnorm:", i))
-  qqline(datsample[(datsample$expert_label == -1),i], col = 2)
+for(i in box_variables) {#For Non-Cloudy
+  plot[[paste0(i, "noncloudy")]] <- ggqqplot(datsample[(datsample$expert_label == -1), i]) + labs(title = paste0("Non-Cloudy: ", i), ylab="Sample Quantiles", xlab="Theoretical Quantiles")
 }
+png("imgs/Q3a_checkNormality.png", height = 1080, width = 1080)
+do.call(grid.arrange, c(plot, nrow = 4))
 dev.off()
 
 
@@ -994,8 +1019,8 @@ ggplot(mydata, aes(logit, predictor.value))+
   facet_wrap(~predictors, scales = "free_y")
 dev.off()
 
-
-
-
-
+png("imgs/Fig3a_checkSVM.png", height=1080, width=1080)
+datsample= datsample[(datsample$expert_label != 0),]
+PairPlot(datsample, colnames(datsample)[5:12], "Pair Wise plots", group_var = "expert_label") + aes(alpha=.3) + scale_alpha(guide = 'none')
+dev.off()
 

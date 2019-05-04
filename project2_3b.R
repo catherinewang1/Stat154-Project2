@@ -199,30 +199,6 @@ grid.arrange(ROC_log1, ROC_log2,
              ROC_qda1, ROC_qda2, nrow = 2)
 
 
-## KNN
-## ----------------------------------------------------------------------------
-knn_mod1 = knn(as.factor(expert_label) ~ ., data =  method1_train[,4:12])
-knn_mod1_dist = knn.dist(method1_train[,5:12], dist.meth = "euclidean", p = 2)
-knn(dat[, 5:12], dattest[, 5:12], dat$expert_label, 4)
-knn_mod1_predicted = predict(knn_mod1, type = "prob", newdata = method1_test[,5:12])$posterior
-knn_ROC_1 = getFPRandTPR(knn_mod1_predicted[,"1"], method1_test$expert_label, cutoffs)
-index_min = which.min(getDistCorner(knn_ROC_1))
-knn_predicted1 = as.integer(knn_mod1_predicted > cutoffs[index_min])*2-1
-ROC_knn1 = ggplot(knn_ROC_1, aes(x = FPR, y = TPR)) + geom_line()+
-  annotate("point", x = knn_ROC_1$FPR[index_min], y = knn_ROC_1$TPR[index_min], colour = "blue") +
-  labs(title=paste0("ROC: knn (Method 1) / Best Cutoff:",knn_ROC_1$cutoff[index_min])) 
-
-knn_mod2 = knn(as.factor(expert_label) ~ ., data =  method2_train[,4:12])
-knn_mod2_predicted = predict(knn_mod2, type = "prob", newdata = method2_test[,5:12])$posterior
-knn_ROC_2 = getFPRandTPR(knn_mod2_predicted[,"1"], method2_test$expert_label, cutoffs)
-index_min = which.min(getDistCorner(knn_ROC_2))
-knn_predicted2 = as.integer(knn_mod2_predicted > cutoffs[index_min])*2-1
-ROC_knn2 = ggplot(knn_ROC_2, aes(x = FPR, y = TPR)) + geom_line()+
-  annotate("point", x = knn_ROC_2$FPR[index_min], y = knn_ROC_2$TPR[index_min], colour = "blue") +
-  labs(title=paste0("ROC: knn (Method 2) / Best Cutoff:",knn_ROC_2$cutoff[index_min]))
-
-
-
 # Other Loss Functions
 predictions = list("log1" = log_predicted1, "log2" = log_predicted2, "lda1" = lda_predicted1, "lda2"= lda_predicted2, 
                    "qda1" = qda_predicted1, "qda2" = qda_predicted2, "svm1" = svm_predicted1, "svm2" = svm_predicted2)
